@@ -1,0 +1,255 @@
+---
+title: "Multiple Linear Regression"
+author: "Valentina Zangirolami (valentina.zangirolami@unimib.it)"
+date: "2025-04-23"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE}
+#load libraries
+library(car)
+library(ggplot2)
+library(tidyverse)
+```
+
+```{r, include=TRUE}
+esg_data <- read.csv("esg_financial_dataset.csv")
+```
+
+## ***Dataset: ESG ratings***
+
+![](download.jpeg){width="40%"}
+
+ESG (Environmental, Social, and Governance) refers to a set of criteria used to evaluate a company's sustainability and ethical impact:
+
+-   **Environmental** -- Impact on the natural environment (climate change, pollution, resource use).
+
+-   **Social** -- Relationships with people (employees, communities, customers) focusing on diversity and human rights.
+
+-   **Governance** -- Leadership ethics, transparency, shareholder rights, and anti-corruption policies in corporate decision-making.
+
+ESG helps investors and customers assess whether a business operates responsibly for long-term success. The main ESG metric is the Overall ESG score which is computed as a weighted sum of Environmental score, Social score and Governance score.
+
+```{r, include=TRUE}
+head(esg_data)
+```
+
+There are 13 variables:
+
+-   **Industry**: Sector of the company
+
+-   **Region**: Region of the company
+
+-   **Revenue**: Annual revenue in millions USD
+
+-   **ProfitMargin**: Net profit margin as percentage of revenue
+
+-   **MarketCap**: Market capitalization in millions USD
+
+-   **GrowthRate**: Year-over-year revenue growth rate (%)
+
+-   **ESG_Overall**: Aggregate ESG sustainability score (0--100)
+
+-   **ESG_Environmental**: Environmental sustainability score (0--100)
+
+-   **ESG_Social**: Social responsibility score (0--100)
+
+-   **ESG_Governance**: Corporate governance quality score (0--100)
+
+-   **CarbonEmissions**: Annual carbon emissions in tons $CO_2$
+
+-   **WaterUsage**: Annual water usage in cubic meters
+
+-   **EnergyConsumption**: Annual energy consumption in megawatt-hours (MWh)
+
+At the beginning, we are going to exclude the variables *ESG_Environmental*, *ESG_Social*, *ESG_Governance*, *ProfitMargin*, *CarbonEmissions*, *WaterUsage*, *Region* and *Industry*.
+
+```{r, include=TRUE}
+
+cat_variables <- esg_data |> select(c(Industry, Region))
+esg_data <- esg_data |> select(-c(Industry, Region, ProfitMargin, ESG_Environmental, ESG_Social, ESG_Governance, CarbonEmissions, WaterUsage))
+
+```
+
+Therefore, an appropriate regression model is represented by
+
+$$MarketCap_i = \beta_1 + \beta_2 Revenue_i + \beta_3 GrowthRate_i + \beta_4 ESG\_Overall_i + \beta_5 EnergyConsumption_i + \epsilon_i$$ with the following assumptions:
+
+-   $\epsilon_i \overset{\text{i.i.d.}}{\sim} N(0, \sigma^2)$, $i=1, \ldots, 4000$
+
+-   Linear independence of covariates (Here, it is challenging)
+
+*Question*: In the case of $k \ge 1$ covariates, how can we show graphically the relationship between the response variable *Total* and our covariates?
+
+*Answer*: When we have 2 covariates, the "right" plot should be the 3-dimensional plot. However, the main issue is the lower intepretability and it is just available in the case of 2 covariates. One way would be to represent our data through a Scatter matrix, keeping in mind we are just considering the marginal effect of each independent variable on the response (although with multiple regression we want to explain the combined effect). But it can be used with $k \ge 2$ covariates.
+
+**Scatter plot Matrix**
+
+```{r, include=TRUE, warning=FALSE, message=FALSE}
+Scatter_Matrix <- GGally::ggpairs(esg_data, 
+                          title = "Scatter Plot Matrix for ESG data", 
+                          axisLabels = "show") 
+```
+
+```{r  echo=FALSE, results='hide', fig.keep='all', message = FALSE}
+Scatter_Matrix
+```
+
+**Marginal interpretation**
+
+-   *MarketCap vs Revenue*: the relationship among these two variables appears to be linear. Indeed, the linear correlation is really high.
+
+-   *MarketCap vs GrowthRate*: the relationship is not properly linear and the correlation is low.
+
+-   *MarketCap vs ESG_Score*: the relationship is not properly linear and the correlation is low.
+
+-   *MarketCap vs EnergyConsumption*: the relationship is not properly linear and the linear correlation is moderate.
+
+-   Relationship among independent variables: we can observe that the correlation among independent variables (GrowthRate-Revenue, ESG_Overall-Revenue, HP-ecc.) is not high (with the exception of EnergyConsumption-Revenue), which represents a positive aspect in our case. Indeed, a marked linear dependence between independent variables leads to issues such as in the regression matrix X the corresponding columns are almost linearly dependent (multicollinearity). In the presence of multicollinearity, the estimates may be numerically unstable because the matrix $(X^TX)$ is nearly singular (a matrix is invertible iff it is nonsingular). $\implies$ a good model should not include pairs of highly correlated variables.
+
+```{r, include=TRUE}
+mod <- lm(MarketCap~., data=esg_data)
+summary(mod)
+```
+
+The estimated model corresponds to
+
+$$ \widehat{MarketCap}_i = -3413.7267 + 3.6246 Revenue_i -19.3591 GrowthRate_i + 18.4277 ESG\_Overall_i -0.0001 EnergyConsumption_i$$ - **Coefficients:** In this section, we have 4 columns (Estimate, Std. Error, t-value, p-value). *Estimate* refers to the estimates of regression coefficients. *Std. Error* is the square root of the estimated variance of each estimator. The *t-value* is the test statistic of t-test with the related p-value.
+
+Considering the following system of hypothesis $$\begin{cases}
+        \mbox{H0: } \beta_r = 0\\
+        \mbox{H1: } \beta_r \ne 0
+    \end{cases}$$
+
+for $r=\{1,2,3,4,5\}$. The t-values for $\beta_1$, $\beta_2$, $\beta_3$, $\beta_4$ and $\beta_5$ are $t_1^{oss} = -1.997$, $t_2^{oss} = 87.266$, $t_3^{oss} = -0.394$, $t_4^{oss} = 0.632$ and $t_5^{oss} = -13.104$.
+
+**Significance of coefficients**: $\beta_1$ is likely to not reject the hypothesis of no-significance. $\beta_2$ is significant at any level. $\beta_3$ and $\beta_4$ are not significant. $\beta_5$ is significant at any significant level.
+
+-   **Goodness of fit**: The last part of the output refers to checking the goodness of fit. In this case, the F-test has the following characteristics $$\begin{cases}
+        \mbox{H0: } \beta_2 = \beta_3 =\beta_4 = \beta_5 =0\\
+        \mbox{H1: } \exists j \mbox{ s.t. }\beta_j \ne 0\mbox{, j=2,3,4,5}
+    \end{cases}$$
+
+The f-value is $f^{oss} = 2369$ and the p-value is $\alpha^{oss}= P(F_{4, 3995} > f^{oss}) \approx 0$. We reject the null hypothesis.
+
+The residual standard error corresponds to $\sqrt{SSE/(n-5)}$ where $n-5 = 3995$ (degree of freedom).
+
+The coefficients of determination correspond to $R^2= 0.7035$ and $R_{(adj)}^2=0.7032$. The adjusted-$R^2$ is penalized by the number of covariates.
+
+**Interpretation Coefficients**
+
+-   $\hat{\beta}_2 = 3.62$, the mean of MarketCap increases by 3.62 millions when Revenue increases by one million while keeping the other independent variables constant
+
+-   $\hat{\beta}_3 = -19.36$, the mean of MarketCap decreases by 19.36 millions when GrowthRate increases by 1% while keeping the other independent variables constant
+
+-   $\hat{\beta}_4 = 18.43$, the mean of MarketCap increases by 18.43 millions when ESG_Overall increases by one point-score while keeping the other independent variables constant
+
+-   $\hat{\beta}_5 = -0.0001$, the mean of MarketCap decreases by 0.0001 points when EnergyConsumption increases by one annual MWh while keeping the other independent variables constant
+
+**Diagnostic plot**
+
+```{r, include=TRUE}
+par(mfrow=c(2,2))
+plot(mod)
+```
+
+Comments:
+
+-   **Residual vs Fitted**: some issues with linearity
+
+-   **Q-Q Residuals**: heavy tails
+
+-   **Scale-Location**: some issues with homoscedasticity
+
+-   **Residuals vs Leverage**: there are two points with high leverage and there are few outliers. Some of these points are outside the cook's distance and can affect estimates.
+
+**Adding categorical variables**
+
+When we add categorical variables in a linear model, we should know that they are handled with dummy variables. Let's consider the following model
+
+```{r, include=TRUE}
+esg_data <- cbind(esg_data, cat_variables)
+
+mod_2 =lm(MarketCap~., data=esg_data)
+summary(mod_2)
+```
+
+The estimated model corresponds to
+
+$$ \widehat{MarketCap}_i = -4665.0906 + 3.3755 Revenue_i -76.6734 GrowthRate_i + 25.2741 ESG\_Overall_i -0.0001 EnergyConsumption_i + 1804.6768 D^{(1)}_1 -6645.3439 D^{(1)}_2 + 273.2037 D^{(1)}_3 -417.2956 D^{(1)}_4 -159.5425 D^{(1)}_5 + 23476.8493 D^{(1)}_6 + 1254.7178 D^{(1)}_7 + 962.8883 D^{(1)}_8 + 2142.1911 D^{(2)}_1 -28.3684 D^{(2)}_2 -2020.9469 D^{(2)}_3 +1697.2618 D^{(2)}_4 + 772.4052 D^{(2)}_5 -390.5168 D^{(2)}_6$$ where, for $j=1, \ldots, 7$ and $cat=\{Energy, Finance, Healthcare, Manufacturing, Retail, Technology, Transportation, Utilities,Consumer Goods\}$, $$D^{(1)}_j = \begin{cases}
+        1,\quad \mbox{ if } Industry =cat[j]\\
+        0,\quad \mbox{ Otherwise }
+    \end{cases}$$ Then, the category Consumer Goods is the baseline. We created 8 Dummies among 9 categories. Same concept for the variable Region.
+
+**Test about nested models**
+
+We can compare the two models we have been considered: full model (with categorical variables) and the restricted model (with only quantitative variables).
+
+```{r, include=TRUE}
+anova(mod, mod_2)
+```
+
+The null hypothesis is characterized by coefficients of dummies equal to 0.
+
+**Residual Sum of Squares**
+
+-   Restricted model: $SSE= 3.2495e+12$
+
+-   Full model: $SSE= 3.0572e+12$
+
+**Test statistic**
+
+$$F^{obs}= 17.889$$ and the p-value is $\alpha^{obs} \approx 0$ $\implies$ We reject our null hypothesis $H0$.
+
+**Diagnostic plot**
+
+```{r, include=TRUE}
+par(mfrow=c(2,2))
+plot(mod_2)
+```
+
+Same issues of before but we can observe an improvement in terms of outliers.
+
+**Interaction**
+
+We observe that there are few industry effects (such as Technology). It could be useful add an interaction of EnergyConsumption and Industries.
+
+```{r, include=TRUE}
+mod_int <- lm(MarketCap ~ . + EnergyConsumption:Industry, data = esg_data)
+summary(mod_int)
+```
+The interaction between EnergyConsumption and Industry improves the R-squared.
+
+**Interpretation of parameter** (example with dummy)
+
+- In the case of Technology industry, the mean of MarketCap increases by 33.79 (sum of EnergyConsumption coefficient and EnergyConsumption:IndustryTechnology) thousand dollars when EnergyConsumption increases by one annual MWh while keeping the other independent variables constant
+- In the case of Technology industry, the intercept is 11244  
+
+
+#### **Model Selection**
+
+Stepwise selection allows to select a model (which can contain a subset of features - that's a way to select features) on the basis of the best value of a criterion.
+
+There are three different ways: (i) **Backward selection**: starting from the full model, the feature are removed on the basis of a criterion; (ii) **Forward selection**: starting from the null model, the feature are added (one at a time) on the basis of a criterion; (iii) **Both**: forward and backward selection, starting from some plausible initial model (not necessarily the simplest or most complex). In each step add or drop one variable that most improves the model.
+
+There main criterion is the Akaike Information Criteria:
+
+$$AIC= -2 \sup \log Lik + 2 p$$ 
+
+where $p$ is the number of coefficients.
+
+```{r, include=TRUE}
+step(mod_int,trace=1,direction="backward")
+```
+Starting from the full model (with the interaction), we obtained
+
+- **AIC = 81729.24** for the full model
+- **AIC = 81727.24** without GrowthRate
+
+We then prefer the second model (interaction + without GrowthRate).
+
+```{r, include=TRUE}
+mod_nullo <- lm(MarketCap ~ 1, data = esg_data)
+step(mod_nullo,trace=1,direction="forward",scope = formula(lm(MarketCap ~ . + EnergyConsumption:Industry, data = esg_data)))
+```
+We obtained the same result of backward method.

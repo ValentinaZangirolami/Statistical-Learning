@@ -1,0 +1,32 @@
+{
+    "id": "775D5815",
+    "path": "C:/Users/valen/Desktop/PhD/esercitazioni_statlearn/linear_regression/2.MultipleLM.Rmd",
+    "project_path": "2.MultipleLM.Rmd",
+    "type": "r_markdown",
+    "hash": "3818527380",
+    "contents": "",
+    "dirty": false,
+    "created": 1744470399962.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "tempName": "Untitled2",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "7,23",
+        "scrollLine": "0",
+        "rmdVisualMode": "false",
+        "rmdVisualWrapConfigured": "true",
+        "docOutlineVisible": "1",
+        "rmdVisualCollapsedChunks": "",
+        "rmdVisualModeLocation": "8778:5656.888671875"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1744500801,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1744500801074,
+    "read_only": false,
+    "read_only_alternatives": []
+}

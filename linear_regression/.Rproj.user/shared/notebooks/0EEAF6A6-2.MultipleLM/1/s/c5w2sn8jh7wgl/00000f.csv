@@ -1,0 +1,4 @@
+"0",""
+"0","cat_variables <- esg_data |> select(c(Industry, Region))"
+"0","esg_data <- esg_data |> select(-c(Industry, Region, ProfitMargin, ESG_Environmental, ESG_Social, ESG_Governance, CarbonEmissions, WaterUsage))"
+"0",""
