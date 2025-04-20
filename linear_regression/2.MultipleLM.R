@@ -6,6 +6,8 @@
 #                           Valentina Zangirolami                              #
 ################################################################################
 
+# you can find the notes of this lecture in my github: https://github.com/ValentinaZangirolami/Statistical-Learning
+
 #load libraries
 library(car)
 library(ggplot2)
@@ -17,9 +19,9 @@ esg_data <- read.csv("esg_financial_dataset.csv")
 #show data
 head(esg_data)
 
-# we're going to esclude some variables to: (i) alleviate correlation among independent variables, (ii) working just quantitative variables
-cat_variables <- esg_data |> select(c(Industry, Region))
-esg_data <- esg_data |> select(-c(Industry, Region, ProfitMargin, ESG_Environmental, ESG_Social, ESG_Governance, CarbonEmissions, WaterUsage))
+# esclude some variables to: (i) alleviate correlation among independent variables, (ii) simplify the problem
+cat_variables <- esg_data |> select(Industry)
+esg_data <- esg_data |> select(-c(Industry, Region, ProfitMargin, ESG_Environmental, ESG_Social, ESG_Governance, EnergyConsumption, WaterUsage, CarbonEmissions))
 
 #marginal interpretation
 
@@ -44,15 +46,9 @@ esg_data <- cbind(esg_data, cat_variables)
 mod_2 =lm(MarketCap~., data=esg_data)
 summary(mod_2)
 
+round(mod_2$coefficients, 5)
+
 unique(esg_data$Industry) # 8 dummies out of 9 categories
-
-unique(esg_data$Region) # 6 dummies out of 7 categories
-
-# we can fit separeted regression model for each category.
-
-# toy example
-
-ggplot(esg_data, aes(x=Revenue, y=MarketCap, color=Region))+ geom_point() + geom_smooth(method = "lm", aes(fill=Region))
 
 #nested models
 
@@ -63,9 +59,37 @@ anova(mod, mod_2)
 par(mfrow=c(2,2))
 plot(mod_2)
 
+# Evaluating interactions
+
+ggplot(esg_data, aes(x = GrowthRate, y = MarketCap, color = Industry)) +
+  geom_point(size = 1, shape=3) +
+  geom_smooth(method = "lm", se = FALSE) +  # Adds linear regression lines
+  labs(
+    x = "GrowthRate",
+    y = "MarketCap",
+    color = "Industry"
+  ) + ylim(0, 35000) + 
+  theme_minimal()
+
+ggplot(esg_data, aes(x = ESG_Overall, y = MarketCap, color = Industry)) +
+  geom_point(size = 1, shape=3) +
+  geom_smooth(method = "lm", se = FALSE) +  # Adds linear regression lines
+  labs(
+    x = "ESG Overall",
+    y = "MarketCap",
+    color = "Industry"
+  ) + ylim(0, 35000) + 
+  theme_minimal()
+
 #interaction
-mod_int <- lm(MarketCap ~ . + ESG_Overall:Industry, data = esg_data)
+
+mod_int <- lm(MarketCap ~ . + GrowthRate:Industry, data = esg_data)
 summary(mod_int)
+
+par(mfrow=c(2,2))
+plot(mod_int)
+
+round(mod_int$coefficients, 5)
 
 #---------------------
 #MODEL SELECTION
@@ -95,10 +119,10 @@ summary(mod_int)
 
 step(mod_int,trace=1,direction="backward")    #default: backward, trace=1
 #we start from the full model:
-#if we consider all the explanatory variables (none), l'AIC is 81729.24
-#if we do not consider GrowthRate, AIC is 81727.24
+#if we consider all the explanatory variables (none), l'AIC is 81921.36
+#if we do not consider GrowthRate, AIC is 81919.59
 
 #the best AIC is obtained with the model without GrowthRate
 
 mod_nullo <- lm(MarketCap ~ 1, data = esg_data)
-step(mod_nullo,trace=1,direction="forward",scope = formula(lm(MarketCap ~ . + EnergyConsumption:Industry, data = esg_data)))
+step(mod_nullo,trace=1,direction="forward",scope = formula(lm(MarketCap ~ . + GrowthRate:Industry, data = esg_data)))

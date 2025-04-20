@@ -62,18 +62,18 @@ There are 13 variables:
 
 -   **EnergyConsumption**: Annual energy consumption in megawatt-hours (MWh)
 
-At the beginning, we are going to exclude the variables *ESG_Environmental*, *ESG_Social*, *ESG_Governance*, *ProfitMargin*, *CarbonEmissions*, *WaterUsage*, *Region* and *Industry*.
+We exclude some variables to reduce the correlation among covariates (ESG Overall is generally a weighted sum of the other scores) and simplify the problem.
 
 ```{r, include=TRUE}
 
-cat_variables <- esg_data |> select(c(Industry, Region))
-esg_data <- esg_data |> select(-c(Industry, Region, ProfitMargin, ESG_Environmental, ESG_Social, ESG_Governance, CarbonEmissions, WaterUsage))
+cat_variables <- esg_data |> select(Industry)
+esg_data <- esg_data |> select(-c(Industry, Region, ProfitMargin, ESG_Environmental, ESG_Social, ESG_Governance, EnergyConsumption, WaterUsage, CarbonEmissions))
 
 ```
 
 Therefore, an appropriate regression model is represented by
 
-$$MarketCap_i = \beta_1 + \beta_2 Revenue_i + \beta_3 GrowthRate_i + \beta_4 ESG\_Overall_i + \beta_5 EnergyConsumption_i + \epsilon_i$$ with the following assumptions:
+$$MarketCap_i = \beta_1 + \beta_2 Revenue_i + \beta_3 GrowthRate_i + \beta_4 ESG\_Overall_i + \epsilon_i$$ with the following assumptions:
 
 -   $\epsilon_i \overset{\text{i.i.d.}}{\sim} N(0, \sigma^2)$, $i=1, \ldots, 4000$
 
@@ -103,9 +103,7 @@ Scatter_Matrix
 
 -   *MarketCap vs ESG_Score*: the relationship is not properly linear and the correlation is low.
 
--   *MarketCap vs EnergyConsumption*: the relationship is not properly linear and the linear correlation is moderate.
-
--   Relationship among independent variables: we can observe that the correlation among independent variables (GrowthRate-Revenue, ESG_Overall-Revenue, HP-ecc.) is not high (with the exception of EnergyConsumption-Revenue), which represents a positive aspect in our case. Indeed, a marked linear dependence between independent variables leads to issues such as in the regression matrix X the corresponding columns are almost linearly dependent (multicollinearity). In the presence of multicollinearity, the estimates may be numerically unstable because the matrix $(X^TX)$ is nearly singular (a matrix is invertible iff it is nonsingular). $\implies$ a good model should not include pairs of highly correlated variables.
+-   Relationship among independent variables: we can observe that the correlation among independent variables (GrowthRate-Revenue, ESG_Overall-Revenue, HP-ecc.) is not high, which represents a positive aspect in our case. Indeed, a marked linear dependence between independent variables leads to issues such as in the regression matrix X the corresponding columns are almost linearly dependent (multicollinearity). In the presence of multicollinearity, the estimates may be numerically unstable because the matrix $(X^TX)$ is nearly singular (a matrix is invertible iff it is nonsingular). $\implies$ a good model should not include pairs of highly correlated variables.
 
 ```{r, include=TRUE}
 mod <- lm(MarketCap~., data=esg_data)
@@ -114,37 +112,36 @@ summary(mod)
 
 The estimated model corresponds to
 
-$$ \widehat{MarketCap}_i = -3413.7267 + 3.6246 Revenue_i -19.3591 GrowthRate_i + 18.4277 ESG\_Overall_i -0.0001 EnergyConsumption_i$$ - **Coefficients:** In this section, we have 4 columns (Estimate, Std. Error, t-value, p-value). *Estimate* refers to the estimates of regression coefficients. *Std. Error* is the square root of the estimated variance of each estimator. The *t-value* is the test statistic of t-test with the related p-value.
+$$ \widehat{MarketCap}_i = -5885.75 + 3.35 Revenue_i - 34.64 GrowthRate_i + 66.62 ESG\_Overall_i$$ - **Coefficients:** In this section, we have 4 columns (Estimate, Std. Error, t-value, p-value). *Estimate* refers to the estimates of regression coefficients. *Std. Error* is the square root of the estimated variance of each estimator. The *t-value* is the test statistic of t-test with the related p-value.
 
 Considering the following system of hypothesis $$\begin{cases}
         \mbox{H0: } \beta_r = 0\\
         \mbox{H1: } \beta_r \ne 0
     \end{cases}$$
 
-for $r=\{1,2,3,4,5\}$. The t-values for $\beta_1$, $\beta_2$, $\beta_3$, $\beta_4$ and $\beta_5$ are $t_1^{oss} = -1.997$, $t_2^{oss} = 87.266$, $t_3^{oss} = -0.394$, $t_4^{oss} = 0.632$ and $t_5^{oss} = -13.104$.
+for $r=\{1,2,3,4,5\}$. The t-values for $\beta_1$, $\beta_2$, $\beta_3$ and $\beta_4$ are $t_1^{oss} = -3.393$, $t_2^{oss} = 91.535$, $t_3^{oss} = -0.69$ and $t_4^{oss} = 2.254$.
 
-**Significance of coefficients**: $\beta_1$ is likely to not reject the hypothesis of no-significance. $\beta_2$ is significant at any level. $\beta_3$ and $\beta_4$ are not significant. $\beta_5$ is significant at any significant level.
+**Significance of coefficients**: $\beta_1$ is likely to reject the hypothesis of no-significance. $\beta_2$ is significant at any level. $\beta_3$ seems to be not significant. $\beta_5$ is significant at $\alpha=0.1$.
 
 -   **Goodness of fit**: The last part of the output refers to checking the goodness of fit. In this case, the F-test has the following characteristics $$\begin{cases}
-        \mbox{H0: } \beta_2 = \beta_3 =\beta_4 = \beta_5 =0\\
-        \mbox{H1: } \exists j \mbox{ s.t. }\beta_j \ne 0\mbox{, j=2,3,4,5}
+        \mbox{H0: } \beta_2 = \beta_3 =\beta_4 =0\\
+        \mbox{H1: } \exists j \mbox{ s.t. }\beta_j \ne 0\mbox{, j=2,3,4}
     \end{cases}$$
 
-The f-value is $f^{oss} = 2369$ and the p-value is $\alpha^{oss}= P(F_{4, 3995} > f^{oss}) \approx 0$. We reject the null hypothesis.
+The f-value is $f^{oss} = 2975$ and the p-value is $\alpha^{oss}= P(F_{3, 3996} > f^{oss}) \approx 0$. We reject the null hypothesis.
 
-The residual standard error corresponds to $\sqrt{SSE/(n-5)}$ where $n-5 = 3995$ (degree of freedom).
+The residual standard error corresponds to $\sqrt{SSE/(n-5)}$ where $n-5 = 3996$ (degree of freedom).
 
-The coefficients of determination correspond to $R^2= 0.7035$ and $R_{(adj)}^2=0.7032$. The adjusted-$R^2$ is penalized by the number of covariates.
+The coefficients of determination correspond to $R^2= 0.6907$ and $R_{(adj)}^2=0.6905$. The adjusted-$R^2$ is penalized by the number of covariates.
 
 **Interpretation Coefficients**
 
--   $\hat{\beta}_2 = 3.62$, the mean of MarketCap increases by 3.62 millions when Revenue increases by one million while keeping the other independent variables constant
+-   $\hat{\beta}_2 = 3.35$, the mean of MarketCap increases by 3.35 millions when Revenue increases by one million while keeping the other independent variables constant
 
--   $\hat{\beta}_3 = -19.36$, the mean of MarketCap decreases by 19.36 millions when GrowthRate increases by 1% while keeping the other independent variables constant
+-   $\hat{\beta}_3 = -34.64$, the mean of MarketCap decreases by 34.64 millions when GrowthRate increases by 1% while keeping the other independent variables constant
 
--   $\hat{\beta}_4 = 18.43$, the mean of MarketCap increases by 18.43 millions when ESG_Overall increases by one point-score while keeping the other independent variables constant
+-   $\hat{\beta}_4 = 66.62$, the mean of MarketCap increases by 66.62 millions when ESG_Overall increases by one point-score while keeping the other independent variables constant
 
--   $\hat{\beta}_5 = -0.0001$, the mean of MarketCap decreases by 0.0001 points when EnergyConsumption increases by one annual MWh while keeping the other independent variables constant
 
 **Diagnostic plot**
 
@@ -155,11 +152,11 @@ plot(mod)
 
 Comments:
 
--   **Residual vs Fitted**: some issues with linearity
+-   **Residual vs Fitted**: it seems that there is a slight pattern.. perhaps, linearity is not well satisfy
 
 -   **Q-Q Residuals**: heavy tails
 
--   **Scale-Location**: some issues with homoscedasticity
+-   **Scale-Location**: it seems to show some concerns with homoscedasticity
 
 -   **Residuals vs Leverage**: there are two points with high leverage and there are few outliers. Some of these points are outside the cook's distance and can affect estimates.
 
@@ -176,10 +173,10 @@ summary(mod_2)
 
 The estimated model corresponds to
 
-$$ \widehat{MarketCap}_i = -4665.0906 + 3.3755 Revenue_i -76.6734 GrowthRate_i + 25.2741 ESG\_Overall_i -0.0001 EnergyConsumption_i + 1804.6768 D^{(1)}_1 -6645.3439 D^{(1)}_2 + 273.2037 D^{(1)}_3 -417.2956 D^{(1)}_4 -159.5425 D^{(1)}_5 + 23476.8493 D^{(1)}_6 + 1254.7178 D^{(1)}_7 + 962.8883 D^{(1)}_8 + 2142.1911 D^{(2)}_1 -28.3684 D^{(2)}_2 -2020.9469 D^{(2)}_3 +1697.2618 D^{(2)}_4 + 772.4052 D^{(2)}_5 -390.5168 D^{(2)}_6$$ where, for $j=1, \ldots, 7$ and $cat=\{Energy, Finance, Healthcare, Manufacturing, Retail, Technology, Transportation, Utilities,Consumer Goods\}$, $$D^{(1)}_j = \begin{cases}
+$$ \widehat{MarketCap}_i = -3227.37 + 3.16 Revenue_i -125.17 GrowthRate_i + 16.86 ESG\_Overall_i -3990.52 D_1 -5397.06 D_2 + 1257.97 D_3 -1108.29 D_4 -85.59 D_5 + 27922.22 D_6 + 1018.11 D_7 + 4.27 D_8$$ where, for $j=1, \ldots, 7$ and $cat=\{Energy, Finance, Healthcare, Manufacturing, Retail, Technology, Transportation, Utilities,Consumer Goods\}$, $$D_j = \begin{cases}
         1,\quad \mbox{ if } Industry =cat[j]\\
         0,\quad \mbox{ Otherwise }
-    \end{cases}$$ Then, the category Consumer Goods is the baseline. We created 8 Dummies among 9 categories. Same concept for the variable Region.
+    \end{cases}$$ Then, the category Consumer Goods is the baseline. We created 8 Dummies among 9 categories. 
 
 **Test about nested models**
 
@@ -193,13 +190,13 @@ The null hypothesis is characterized by coefficients of dummies equal to 0.
 
 **Residual Sum of Squares**
 
--   Restricted model: $SSE= 3.2495e+12$
+-   Restricted model: $SSE= 3.3892e+12$
 
--   Full model: $SSE= 3.0572e+12$
+-   Full model: $SSE= 3.1197e+12$
 
 **Test statistic**
 
-$$F^{obs}= 17.889$$ and the p-value is $\alpha^{obs} \approx 0$ $\implies$ We reject our null hypothesis $H0$.
+$$F^{obs}= 43.069$$ and the p-value is $\alpha^{obs} \approx 0$ $\implies$ We reject our null hypothesis $H0$.
 
 **Diagnostic plot**
 
@@ -208,22 +205,47 @@ par(mfrow=c(2,2))
 plot(mod_2)
 ```
 
-Same issues of before but we can observe an improvement in terms of outliers.
+We can observe an improvement in terms of outliers while the conclusion of the other plots seems to be the same. 
 
 **Interaction**
 
-We observe that there are few industry effects (such as Technology). It could be useful add an interaction of EnergyConsumption and Industries.
+We observe that there are few industry effects (such as Technology). To move beyond linearity, the first step can be adding interactions. Marginally, it could be interesting to visualize the relationship of GrowthRate-MarketCap-Industry and ESG_Overall-MarketCap-Industry 
+
+```{r, include=TRUE, warning=FALSE, message=FALSE}
+ggplot(esg_data, aes(x = GrowthRate, y = MarketCap, color = Industry)) +
+  geom_point(size = 1, shape=3) +
+  geom_smooth(method = "lm", se = FALSE) +  # Adds linear regression lines
+  labs(
+    x = "GrowthRate",
+    y = "MarketCap",
+    color = "Industry"
+  ) + ylim(0, 35000) + 
+  theme_minimal()
+
+ggplot(esg_data, aes(x = ESG_Overall, y = MarketCap, color = Industry)) +
+  geom_point(size = 1, shape=3) +
+  geom_smooth(method = "lm", se = FALSE) +  # Adds linear regression lines
+  labs(
+    x = "ESG Overall",
+    y = "MarketCap",
+    color = "Industry"
+  ) + ylim(0, 35000) + 
+  theme_minimal()
+```
+
+No parallel lines. Let's add the interaction GrowthRate-Industry
 
 ```{r, include=TRUE}
-mod_int <- lm(MarketCap ~ . + EnergyConsumption:Industry, data = esg_data)
+mod_int <- lm(MarketCap ~ . + GrowthRate:Industry, data = esg_data)
 summary(mod_int)
 ```
-The interaction between EnergyConsumption and Industry improves the R-squared.
+
+The interaction between GrowthRate and Industry improves a bit the R-squared while making not significant GrowthRate.
 
 **Interpretation of parameter** (example with dummy)
 
-- In the case of Technology industry, the mean of MarketCap increases by 33.79 (sum of EnergyConsumption coefficient and EnergyConsumption:IndustryTechnology) thousand dollars when EnergyConsumption increases by one annual MWh while keeping the other independent variables constant
-- In the case of Technology industry, the intercept is 11244  
+- In the case of Technology industry, the mean of MarketCap increases by 450.61 (sum of GrowthRate coefficient and GrowthRate:IndustryTechnology) thousand dollars when GrowthRate increases by 1% while keeping the other independent variables constant
+- In the case of Technology industry, the intercept is 19387.56  
 
 
 #### **Model Selection**
@@ -241,15 +263,17 @@ where $p$ is the number of coefficients.
 ```{r, include=TRUE}
 step(mod_int,trace=1,direction="backward")
 ```
+
 Starting from the full model (with the interaction), we obtained
 
-- **AIC = 81729.24** for the full model
-- **AIC = 81727.24** without GrowthRate
+- **AIC = 81921.36** for the full model
+- **AIC = 81919.59** without ESG_Overall
 
-We then prefer the second model (interaction + without GrowthRate).
+We then prefer the second model (interaction + without ESG_Overall).
 
 ```{r, include=TRUE}
 mod_nullo <- lm(MarketCap ~ 1, data = esg_data)
-step(mod_nullo,trace=1,direction="forward",scope = formula(lm(MarketCap ~ . + EnergyConsumption:Industry, data = esg_data)))
+step(mod_nullo,trace=1,direction="forward",scope = formula(lm(MarketCap ~ . + GrowthRate:Industry, data = esg_data)))
 ```
+
 We obtained the same result of backward method.
