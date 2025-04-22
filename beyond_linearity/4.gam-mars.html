@@ -360,10 +360,10 @@ display: none;
 <pre class="r"><code>#load libraries
 library(car)
 library(ggplot2)
-library(gam)
 library(ISLR2)
 library(splines)
 library(tidymodels)
+library(yardstick)
 library(mgcv)       
 library(tidyverse)</code></pre>
 <div id="dataset-college" class="section level2">
@@ -432,6 +432,193 @@ train_data &lt;- training(split)
 val_data &lt;- testing(split)</code></pre>
 <p>(Instead of holdout sample, you can use also cross-validation. In the
 following classes, we shall consider it.)</p>
+<p>Since we are considering <em>Enroll</em> as response variable, we
+need to model the response in an appropriate way.</p>
+<p>If we would like to include natural splines for many covariates, it
+is not necessary leveraging backfitting algorithm. Indeed, we can
+include each natural spline in the classical formula of Generalized
+Linear model.</p>
+<p>Generally, we assume <span class="math inline">\(Enroll \sim
+Pois(\mu)\)</span> where</p>
+<p><span class="math display">\[log(\mu) = \beta_0 + \sum_{i=1}^{17}
+f_i(X^{i})\]</span> with <span class="math inline">\(X^{(i)}\)</span>
+meaning the 17 covariates.</p>
+<pre class="r"><code>gam_1 &lt;- glm(Enroll ~ Apps + Accept + Private + F.Undergrad + ns(Top10perc, 3) + ns(Top25perc,3) + P.Undergrad + ns(Outstate,3) + ns(Room.Board, 4) + ns(Books) + ns(Personal,3) + ns(PhD,3) + ns(Terminal,3) + ns(S.F.Ratio,3) + ns(perc.alumni,3) + ns(Expend,3) + ns(Grad.Rate,3),family=poisson, data=train_data)
+
+summary(gam_1)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = Enroll ~ Apps + Accept + Private + F.Undergrad + 
+##     ns(Top10perc, 3) + ns(Top25perc, 3) + P.Undergrad + ns(Outstate, 
+##     3) + ns(Room.Board, 4) + ns(Books) + ns(Personal, 3) + ns(PhD, 
+##     3) + ns(Terminal, 3) + ns(S.F.Ratio, 3) + ns(perc.alumni, 
+##     3) + ns(Expend, 3) + ns(Grad.Rate, 3), family = poisson, 
+##     data = train_data)
+## 
+## Coefficients:
+##                       Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)          6.015e+00  3.921e-02 153.380  &lt; 2e-16 ***
+## Apps                 3.617e-05  1.357e-06  26.648  &lt; 2e-16 ***
+## Accept               9.373e-05  2.084e-06  44.976  &lt; 2e-16 ***
+## PrivateYes          -3.284e-01  6.088e-03 -53.941  &lt; 2e-16 ***
+## F.Undergrad          3.418e-05  7.164e-07  47.716  &lt; 2e-16 ***
+## ns(Top10perc, 3)1    2.808e-01  1.647e-02  17.049  &lt; 2e-16 ***
+## ns(Top10perc, 3)2    5.709e-01  3.276e-02  17.427  &lt; 2e-16 ***
+## ns(Top10perc, 3)3    4.655e-01  2.361e-02  19.713  &lt; 2e-16 ***
+## ns(Top25perc, 3)1    2.905e-02  1.453e-02   1.999 0.045563 *  
+## ns(Top25perc, 3)2   -4.206e-01  4.077e-02 -10.316  &lt; 2e-16 ***
+## ns(Top25perc, 3)3   -4.652e-01  1.889e-02 -24.633  &lt; 2e-16 ***
+## P.Undergrad          1.536e-05  8.328e-07  18.444  &lt; 2e-16 ***
+## ns(Outstate, 3)1    -2.186e-01  1.179e-02 -18.552  &lt; 2e-16 ***
+## ns(Outstate, 3)2    -7.079e-01  2.376e-02 -29.799  &lt; 2e-16 ***
+## ns(Outstate, 3)3     5.721e-02  1.712e-02   3.342 0.000831 ***
+## ns(Room.Board, 4)1  -3.818e-01  1.371e-02 -27.851  &lt; 2e-16 ***
+## ns(Room.Board, 4)2  -3.292e-01  1.256e-02 -26.221  &lt; 2e-16 ***
+## ns(Room.Board, 4)3  -3.653e-01  3.116e-02 -11.725  &lt; 2e-16 ***
+## ns(Room.Board, 4)4   2.177e-01  1.866e-02  11.666  &lt; 2e-16 ***
+## ns(Books)            4.205e-01  3.023e-02  13.908  &lt; 2e-16 ***
+## ns(Personal, 3)1     2.058e-01  1.082e-02  19.011  &lt; 2e-16 ***
+## ns(Personal, 3)2     7.684e-01  2.490e-02  30.865  &lt; 2e-16 ***
+## ns(Personal, 3)3     5.237e-01  3.084e-02  16.985  &lt; 2e-16 ***
+## ns(PhD, 3)1          2.514e-01  1.981e-02  12.688  &lt; 2e-16 ***
+## ns(PhD, 3)2          3.450e-01  6.010e-02   5.740 9.45e-09 ***
+## ns(PhD, 3)3          1.024e-01  1.797e-02   5.700 1.20e-08 ***
+## ns(Terminal, 3)1     4.083e-01  2.005e-02  20.361  &lt; 2e-16 ***
+## ns(Terminal, 3)2     9.594e-02  5.601e-02   1.713 0.086723 .  
+## ns(Terminal, 3)3     5.644e-02  1.487e-02   3.797 0.000147 ***
+## ns(S.F.Ratio, 3)1    4.066e-01  1.559e-02  26.076  &lt; 2e-16 ***
+## ns(S.F.Ratio, 3)2   -2.191e-01  3.944e-02  -5.556 2.76e-08 ***
+## ns(S.F.Ratio, 3)3   -4.483e-01  4.538e-02  -9.878  &lt; 2e-16 ***
+## ns(perc.alumni, 3)1 -1.194e-01  8.458e-03 -14.117  &lt; 2e-16 ***
+## ns(perc.alumni, 3)2  1.052e-01  2.126e-02   4.946 7.57e-07 ***
+## ns(perc.alumni, 3)3 -4.415e-02  1.646e-02  -2.683 0.007292 ** 
+## ns(Expend, 3)1       3.066e-01  2.007e-02  15.275  &lt; 2e-16 ***
+## ns(Expend, 3)2       1.731e-01  2.630e-02   6.583 4.60e-11 ***
+## ns(Expend, 3)3       3.906e-01  2.430e-02  16.076  &lt; 2e-16 ***
+## ns(Grad.Rate, 3)1   -1.180e-01  1.120e-02 -10.529  &lt; 2e-16 ***
+## ns(Grad.Rate, 3)2    2.918e-01  3.406e-02   8.565  &lt; 2e-16 ***
+## ns(Grad.Rate, 3)3    7.978e-01  1.928e-02  41.379  &lt; 2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for poisson family taken to be 1)
+## 
+##     Null deviance: 425390  on 619  degrees of freedom
+## Residual deviance:  51204  on 579  degrees of freedom
+## AIC: 56241
+## 
+## Number of Fisher Scoring iterations: 4</code></pre>
+<p>Specifically, the estimated model corresponds to</p>
+<p><span class="math display">\[log(\mu_i) = 6.01 + 0.00004 Apps_i +
+0.00009 Accept_i -0.33 D_i + 0.00003 F.Undergrad + 0.28 b_1(Top10perc) +
+0.57b_2(Top10perc) + 0.47 b_3(Top10perc) + 0.03 b_4(Top25perc)
+-0.42b_5(Top25perc) - 0.47 b_6(Top25perc) + \ldots,\]</span></p>
+<p>where <span class="math inline">\(b_1, b_2, b_3, b_4, b_5,
+b_6\)</span> are basis functions.</p>
+<p><strong>Comments</strong></p>
+<ul>
+<li>Most of coefficients are significant at any <span class="math inline">\(\alpha\)</span> level (except to ns(Top25perc,
+3)1, ns(Terminal, 3)2, ns(perc.alumni, 3)3 )</li>
+<li>The test about overall significance:</li>
+</ul>
+<pre class="r"><code>mod_0 &lt;- glm(Enroll ~ 1, family=poisson, data=train_data)
+anova(mod_0,gam_1,test=&quot;Chisq&quot;)</code></pre>
+<pre><code>## Analysis of Deviance Table
+## 
+## Model 1: Enroll ~ 1
+## Model 2: Enroll ~ Apps + Accept + Private + F.Undergrad + ns(Top10perc, 
+##     3) + ns(Top25perc, 3) + P.Undergrad + ns(Outstate, 3) + ns(Room.Board, 
+##     4) + ns(Books) + ns(Personal, 3) + ns(PhD, 3) + ns(Terminal, 
+##     3) + ns(S.F.Ratio, 3) + ns(perc.alumni, 3) + ns(Expend, 3) + 
+##     ns(Grad.Rate, 3)
+##   Resid. Df Resid. Dev Df Deviance  Pr(&gt;Chi)    
+## 1       619     425390                          
+## 2       579      51204 40   374186 &lt; 2.2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<p>The hypothesis of non-significance of all coefficients is
+rejected.</p>
+<p>When we want to include splies as smoothing splines, we need to use
+backfitting algorithm by using the function <em>gam</em>, as follows</p>
+<pre class="r"><code>gam_2 &lt;- gam(Enroll ~ Apps + Accept + Private + F.Undergrad + 
+             s(Top10perc, k=3) + s(Top25perc, k=3) + P.Undergrad + 
+             s(Outstate, k=3) + s(Room.Board, k=4) + s(Books, k=3) + 
+             s(Personal, k=3) + s(PhD, k=3) + s(Terminal, k=3) + 
+             s(S.F.Ratio, k=3) + s(perc.alumni, k=3) + s(Expend, k=3) + 
+             s(Grad.Rate, k=3), 
+             family = poisson(), 
+             data = train_data,
+             method = &quot;REML&quot;)
+
+summary(gam_2)</code></pre>
+<pre><code>## 
+## Family: poisson 
+## Link function: log 
+## 
+## Formula:
+## Enroll ~ Apps + Accept + Private + F.Undergrad + s(Top10perc, 
+##     k = 3) + s(Top25perc, k = 3) + P.Undergrad + s(Outstate, 
+##     k = 3) + s(Room.Board, k = 4) + s(Books, k = 3) + s(Personal, 
+##     k = 3) + s(PhD, k = 3) + s(Terminal, k = 3) + s(S.F.Ratio, 
+##     k = 3) + s(perc.alumni, k = 3) + s(Expend, k = 3) + s(Grad.Rate, 
+##     k = 3)
+## 
+## Parametric coefficients:
+##               Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)  6.158e+00  5.412e-03 1137.98   &lt;2e-16 ***
+## Apps         4.002e-05  1.322e-06   30.28   &lt;2e-16 ***
+## Accept       9.193e-05  2.030e-06   45.28   &lt;2e-16 ***
+## PrivateYes  -3.756e-01  5.978e-03  -62.83   &lt;2e-16 ***
+## F.Undergrad  3.032e-05  6.706e-07   45.22   &lt;2e-16 ***
+## P.Undergrad  1.334e-05  7.813e-07   17.07   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Approximate significance of smooth terms:
+##                  edf Ref.df Chi.sq p-value    
+## s(Top10perc)   1.995  2.000  618.7  &lt;2e-16 ***
+## s(Top25perc)   1.999  2.000 1415.9  &lt;2e-16 ***
+## s(Outstate)    1.999  2.000 1688.7  &lt;2e-16 ***
+## s(Room.Board)  2.996  3.000 2939.8  &lt;2e-16 ***
+## s(Books)       1.922  1.994  372.5  &lt;2e-16 ***
+## s(Personal)    1.945  1.997 1617.4  &lt;2e-16 ***
+## s(PhD)         1.991  2.000  164.9  &lt;2e-16 ***
+## s(Terminal)    1.997  2.000  609.1  &lt;2e-16 ***
+## s(S.F.Ratio)   1.976  1.999 1020.9  &lt;2e-16 ***
+## s(perc.alumni) 1.039  1.077  203.0  &lt;2e-16 ***
+## s(Expend)      1.952  1.998  658.2  &lt;2e-16 ***
+## s(Grad.Rate)   1.999  2.000 2505.6  &lt;2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## R-sq.(adj) =  0.843   Deviance explained =   87%
+## -REML =  30364  Scale est. = 1         n = 620</code></pre>
+<p>All the coefficients are significant and the R2 adj is really high.
+This means that the model is good and it is likely to fit well data.</p>
+<p><strong>Comparison of predictions</strong></p>
+<pre class="r"><code>pred_gam_1_train &lt;- predict(gam_1, train_data[,-4])
+pred_gam_2_train &lt;- predict(gam_2, train_data[,-4])
+
+pred_gam_1 &lt;- predict(gam_1, val_data[,-4])
+pred_gam_2 &lt;- predict(gam_2, val_data[,-4])
+
+rmse &lt;- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2))
+}
+cat(&quot;RMSE on training data \n&quot;)</code></pre>
+<pre><code>## RMSE on training data</code></pre>
+<pre class="r"><code>(rmse_gam_1_train &lt;- rmse(train_data$Enroll, pred_gam_1_train))</code></pre>
+<pre><code>## [1] 1129.292</code></pre>
+<pre class="r"><code>(rmse_gam_2_train &lt;- rmse(train_data$Enroll, pred_gam_2_train))</code></pre>
+<pre><code>## [1] 1129.295</code></pre>
+<pre class="r"><code>cat(&quot;RMSE on validation data \n&quot;)</code></pre>
+<pre><code>## RMSE on validation data</code></pre>
+<pre class="r"><code>(rmse_gam_1 &lt;- rmse(val_data$Enroll, pred_gam_1))</code></pre>
+<pre><code>## [1] 1439.029</code></pre>
+<pre class="r"><code>(rmse_gam_2 &lt;- rmse(val_data$Enroll, pred_gam_2))</code></pre>
+<pre><code>## [1] 1439.029</code></pre>
+<p>The RMSE are similar between the two models. We can see that they are
+better on the training data, which highlights overfitting.</p>
 </div>
 </div>
 

@@ -9,10 +9,10 @@ output: html_document
 #load libraries
 library(car)
 library(ggplot2)
-library(gam)
 library(ISLR2)
 library(splines)
 library(tidymodels)
+library(yardstick)
 library(mgcv)       
 library(tidyverse)
 ```
@@ -63,3 +63,78 @@ val_data <- testing(split)
 ```
 
 (Instead of holdout sample, you can use also cross-validation. In the following classes, we shall consider it.)
+
+Since we are considering *Enroll* as response variable, we need to model the response in an appropriate way. 
+
+If we would like to include natural splines for many covariates, it is not necessary leveraging backfitting algorithm. Indeed, we can include each natural spline in the classical formula of Generalized Linear model.
+
+Generally, we assume $Enroll \sim Pois(\mu)$ where
+
+$$log(\mu) = \beta_0 + \sum_{i=1}^{17} f_i(X^{i})$$
+with $X^{(i)}$ meaning the 17 covariates. 
+
+```{r}
+gam_1 <- glm(Enroll ~ Apps + Accept + Private + F.Undergrad + ns(Top10perc, 3) + ns(Top25perc,3) + P.Undergrad + ns(Outstate,3) + ns(Room.Board, 4) + ns(Books) + ns(Personal,3) + ns(PhD,3) + ns(Terminal,3) + ns(S.F.Ratio,3) + ns(perc.alumni,3) + ns(Expend,3) + ns(Grad.Rate,3),family=poisson, data=train_data)
+
+summary(gam_1)
+```
+
+Specifically, the estimated model corresponds to
+
+$$log(\mu_i) = 6.01 + 0.00004 Apps_i + 0.00009 Accept_i -0.33 D_i + 0.00003 F.Undergrad + 0.28 b_1(Top10perc) + 0.57b_2(Top10perc) + 0.47 b_3(Top10perc) + 0.03 b_4(Top25perc) -0.42b_5(Top25perc) - 0.47 b_6(Top25perc) + \ldots,$$ 
+
+where $b_1, b_2, b_3, b_4, b_5, b_6$ are basis functions. 
+
+**Comments**
+
+- Most of coefficients are significant at any $\alpha$ level (except to ns(Top25perc, 3)1, ns(Terminal, 3)2, ns(perc.alumni, 3)3 )
+- The test about overall significance:
+
+```{r}
+mod_0 <- glm(Enroll ~ 1, family=poisson, data=train_data)
+anova(mod_0,gam_1,test="Chisq")
+```
+
+The hypothesis of non-significance of all coefficients is rejected.
+
+When we want to include splies as smoothing splines, we need to use backfitting algorithm by using the function *gam*, as follows
+
+```{r, include=TRUE}
+gam_2 <- gam(Enroll ~ Apps + Accept + Private + F.Undergrad + 
+             s(Top10perc, k=3) + s(Top25perc, k=3) + P.Undergrad + 
+             s(Outstate, k=3) + s(Room.Board, k=4) + s(Books, k=3) + 
+             s(Personal, k=3) + s(PhD, k=3) + s(Terminal, k=3) + 
+             s(S.F.Ratio, k=3) + s(perc.alumni, k=3) + s(Expend, k=3) + 
+             s(Grad.Rate, k=3), 
+             family = poisson(), 
+             data = train_data,
+             method = "REML")
+
+summary(gam_2)
+```
+
+All the coefficients are significant and the R2 adj is really high. This means that the model is good and it is likely to fit well data.
+
+**Comparison of predictions**
+
+```{r}
+pred_gam_1_train <- predict(gam_1, train_data[,-4])
+pred_gam_2_train <- predict(gam_2, train_data[,-4])
+
+pred_gam_1 <- predict(gam_1, val_data[,-4])
+pred_gam_2 <- predict(gam_2, val_data[,-4])
+
+rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2))
+}
+cat("RMSE on training data \n")
+(rmse_gam_1_train <- rmse(train_data$Enroll, pred_gam_1_train))
+(rmse_gam_2_train <- rmse(train_data$Enroll, pred_gam_2_train))
+cat("RMSE on validation data \n")
+(rmse_gam_1 <- rmse(val_data$Enroll, pred_gam_1))
+(rmse_gam_2 <- rmse(val_data$Enroll, pred_gam_2))
+
+
+```
+
+The RMSE are similar between the two models. We can see that they are better on the training data, which highlights overfitting.

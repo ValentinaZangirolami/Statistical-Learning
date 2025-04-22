@@ -292,4 +292,4 @@ ggplot(data_house, aes(y=nox, x=dis)) + geom_point(size = 1, shape=3) + geom_lin
   theme_minimal()
 ```
 
-The value of $\lambda$ is greather than the last model, indeed the plot shows a smooth function which try to interpolate better data than df=4 and df=10.
+The value of $\lambda$ is greater than the last model, indeed the plot shows a smooth function which try to interpolate better data than df=4 and df=10.
