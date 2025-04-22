@@ -135,10 +135,30 @@ ggplot(data_house, aes(x = dis, y = nox)) +
 
 #smoothing splines
 
-mod_smooth_spline <- smooth.spline(data_house$dis, data_house$nox, cv=TRUE)
+#df=4
+mod_smooth_spline <- smooth.spline(data_house$dis, data_house$nox, df = 4)
 data_house$pred <- predict(mod_smooth_spline, data_house$dis)$y
 
-ggplot(data_house, aes(nox, dis)) + geom_point() + geom_line(aes(y = pred), color = "red", linewidth = 1.5) +
-  labs(title = "Smoothing Spline Fit", x = "Distance Boston Centers", y = "NO concentrations")
+#df=10
+mod_smooth_spline_2 <- smooth.spline(data_house$dis, data_house$nox, df = 10)
+data_house$pred_2 <- predict(mod_smooth_spline_2, data_house$dis)$y
 
-mod_smooth_spline$lambda
+#df=200
+mod_smooth_spline_3 <- smooth.spline(data_house$dis, data_house$nox, df = 200)
+data_house$pred_3 <- predict(mod_smooth_spline_3, data_house$dis)$y
+
+#plot
+ggplot(data_house, aes(y=nox, x=dis)) + geom_point(size = 1, shape=3) + geom_line(aes(y = pred), color = "red", linewidth = 1) + geom_line(aes(y = pred_2), color = "orange", linewidth = 1) + geom_line(aes(y = pred_3), color = "violet", linewidth = 1) +
+  labs(title = "Smoothing Splines", x = "Distance Boston Centers", y = "NO concentrations")+ 
+  theme_minimal()
+
+#cv
+mod_smooth_spline_cv <- smooth.spline(data_house$dis, data_house$nox, cv=TRUE)
+data_house$pred_cv <- predict(mod_smooth_spline_cv, data_house$dis)$y
+
+#plot
+ggplot(data_house, aes(y=nox, x=dis)) + geom_point(size = 1, shape=3) + geom_line(aes(y = pred_cv), color = "blue", linewidth = 1) +
+  labs(title = "Smoothing Splines", x = "Distance Boston Centers", y = "NO concentrations")+ 
+  theme_minimal()
+
+mod_smooth_spline_cv$lambda

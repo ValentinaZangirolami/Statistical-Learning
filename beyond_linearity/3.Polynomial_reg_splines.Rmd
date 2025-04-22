@@ -249,4 +249,47 @@ ggplot(data_house, aes(x = dis, y = nox)) +
   theme_minimal()
 ```
 
+##### **Smoothing Splines**
 
+Smoothing splines find a function of *dis* that fit well data while penalizing its variability. The importance of the latter is regulated by the tuning parameter $\lambda$ which controls the roughness of the smoothing spline (hence, the effective degree of freedom):
+
+- when $\lambda$ increases from $0$ to $\infty$, the degree of freedom decreases from $506$ to $2$
+
+If we try different value of degree of freedoms (df), we can show that increasing the value the function should fit better the data. 
+
+```{r, include=TRUE}
+mod_smooth_spline <- smooth.spline(data_house$dis, data_house$nox, df = 4)
+data_house$pred <- predict(mod_smooth_spline, data_house$dis)$y
+mod_smooth_spline$lambda
+
+mod_smooth_spline_2 <- smooth.spline(data_house$dis, data_house$nox, df = 10)
+data_house$pred_2 <- predict(mod_smooth_spline_2, data_house$dis)$y
+mod_smooth_spline_2$lambda
+
+mod_smooth_spline_3 <- smooth.spline(data_house$dis, data_house$nox, df = 200)
+data_house$pred_3 <- predict(mod_smooth_spline_3, data_house$dis)$y
+mod_smooth_spline_3$lambda
+```
+
+
+```{r, include=TRUE}
+ggplot(data_house, aes(y=nox, x=dis)) + geom_point(size = 1, shape=3) + geom_line(aes(y = pred), color = "red", linewidth = 1) + geom_line(aes(y = pred_2), color = "orange", linewidth = 1) + geom_line(aes(y = pred_3), color = "violet", linewidth = 1) +
+  labs(title = "Smoothing Splines", x = "Distance Boston Centers", y = "NO concentrations")+ 
+  theme_minimal()
+```
+
+From the plot, we can observe that the function related to df=4 and df=10 are more smooth than the function with df=200.
+
+```{r, include=TRUE, warning=FALSE, message=FALSE}
+mod_smooth_spline_cv <- smooth.spline(data_house$dis, data_house$nox, cv=TRUE)
+data_house$pred_cv <- predict(mod_smooth_spline_cv, data_house$dis)$y
+mod_smooth_spline_cv$lambda
+```
+
+```{r, include=TRUE}
+ggplot(data_house, aes(y=nox, x=dis)) + geom_point(size = 1, shape=3) + geom_line(aes(y = pred_cv), color = "blue", linewidth = 1) +
+  labs(title = "Smoothing Splines", x = "Distance Boston Centers", y = "NO concentrations")+ 
+  theme_minimal()
+```
+
+The value of $\lambda$ is greather than the last model, indeed the plot shows a smooth function which try to interpolate better data than df=4 and df=10.
