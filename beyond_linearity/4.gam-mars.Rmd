@@ -1,0 +1,347 @@
+---
+title: "GAM & MARS"
+author: "Valentina Zangirolami (valentina.zangirolami@unimib.it)"
+date: "2025-05-07"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE}
+#load libraries
+library(car)
+library(ggplot2)
+library(ISLR2)
+library(splines)
+library(earth)
+library(tidymodels)
+library(mgcv)       
+library(tidyverse)
+```
+
+## ***Dataset: College***
+
+```{r, include=TRUE}
+data_college = College
+
+head(data_college)
+```
+
+College dataset is contained in ISLR2 library. You can find the description of the variables in R while searching "College" in **Help**. **Our goal**: predict the number of enrollments for each new college.
+
+```{r, include=FALSE}
+data_college <- data_college |>
+  slice(-which.max(Apps))  
+```
+
+
+```{r, include=TRUE, message=FALSE, warning=FALSE}
+#marginal interpretation
+
+(Scatter_Matrix <- GGally::ggpairs(data_college[,c(2:10)], 
+                                   title = "Scatter Plot Matrix for College (first 9 variables)", 
+                                   axisLabels = "show"))
+(Scatter_Matrix_2 <- GGally::ggpairs(data_college[,c(4, 11:18)], 
+                                   title = "Scatter Plot Matrix for College (remaining variables)", 
+                                   axisLabels = "show"))
+
+```
+
+Marginally, the relationships between Enroll and some covariates (such as Accept, Apps, F.Undergrad) seem to be linear. For other covariates (such as PhD, terminal, perc. Alumni), we can observe a clear non-linear pattern with Enroll. However, the marginal interpretation is not always clear, but, in general, we need to overcome linear relationships between response (Enroll) and covariates.
+
+### **Generalized Additive Models (GAMs)**
+
+GAM allows us to model non-linear relationships when many covariates are involved. 
+
+Before starting, we can split our dataset in the training and validation sets as follows
+
+```{r, include=TRUE}
+
+set.seed(123)  # For reproducibility
+split <- initial_split(data_college, prop = 0.8)
+
+train_data <- training(split)
+val_data <- testing(split)
+```
+
+(Instead of holdout sample, you can use also cross-validation. In the following classes, we shall consider it.)
+
+Since we are considering *Enroll* as response variable, we need to model the response in an appropriate way. 
+
+If we would like to include natural splines for many covariates, it is not necessary leveraging backfitting algorithm. Indeed, we can include each natural spline in the classical formula of Generalized Linear model.
+
+Generally, we assume $Enroll \sim Pois(\mu)$ where
+
+$$log(\mu) = \beta_0 + \sum_{i=1}^{17} f_i(X^{i})$$
+with $X^{(i)}$ meaning the 17 covariates. 
+
+```{r}
+gam_1 <- glm(Enroll ~ Apps + Accept + Private + F.Undergrad + ns(Top10perc, 3) + ns(Top25perc,3) + P.Undergrad + ns(Outstate,3) + ns(Room.Board, 4) + ns(Books) + ns(Personal,3) + ns(PhD,3) + ns(Terminal,3) + ns(S.F.Ratio,3) + ns(perc.alumni,3) + ns(Expend,3) + ns(Grad.Rate,3),family=poisson, data=train_data)
+
+summary(gam_1)
+```
+
+Specifically, the estimated model corresponds to
+
+$$log(\mu_i) = 6.01 + 0.00004 Apps_i + 0.00009 Accept_i -0.33 D_i + 0.00003 F.Undergrad + 0.28 b_1(Top10perc) + 0.57b_2(Top10perc) + 0.47 b_3(Top10perc) + 0.03 b_4(Top25perc) -0.42b_5(Top25perc) - 0.47 b_6(Top25perc) + \ldots,$$ 
+
+where $b_1, b_2, b_3, b_4, b_5, b_6$ are basis functions. 
+
+**Comments**
+
+- Most of coefficients are significant at any $\alpha$ level (except to ns(Top25perc, 3)1, ns(Terminal, 3)2, ns(perc.alumni, 3)3 )
+- The test about overall significance:
+
+```{r}
+mod_0 <- glm(Enroll ~ 1, family=poisson, data=train_data)
+anova(mod_0,gam_1,test="Chisq")
+```
+
+The hypothesis of non-significance of all coefficients is rejected.
+
+When we want to include splies as smoothing splines, we need to use backfitting algorithm by using the function *gam*, as follows
+
+```{r, include=TRUE}
+gam_2 <- gam(Enroll ~ Apps + Accept + Private + F.Undergrad + 
+             s(Top10perc, k=3) + s(Top25perc, k=3) + P.Undergrad + 
+             s(Outstate, k=3) + s(Room.Board, k=4) + s(Books, k=3) + 
+             s(Personal, k=3) + s(PhD, k=3) + s(Terminal, k=3) + 
+             s(S.F.Ratio, k=3) + s(perc.alumni, k=3) + s(Expend, k=3) + 
+             s(Grad.Rate, k=3), 
+             family = poisson(), 
+             data = train_data,
+             method = "REML")
+
+summary(gam_2)
+```
+
+All the coefficients are significant and the R2 adj is really high. This means that the model is good and it is likely to fit well data.
+
+**Comparison of predictions**
+
+```{r}
+pred_gam_1_train <- predict(gam_1, train_data[,-4])
+pred_gam_2_train <- predict(gam_2, train_data[,-4])
+
+pred_gam_1 <- predict(gam_1, val_data[,-4])
+pred_gam_2 <- predict(gam_2, val_data[,-4])
+
+rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2))
+}
+cat("RMSE on training data \n")
+(rmse_gam_1_train <- rmse(train_data$Enroll, pred_gam_1_train))
+(rmse_gam_2_train <- rmse(train_data$Enroll, pred_gam_2_train))
+cat("RMSE on validation data \n")
+(rmse_gam_1 <- rmse(val_data$Enroll, pred_gam_1))
+(rmse_gam_2 <- rmse(val_data$Enroll, pred_gam_2))
+
+
+```
+
+The RMSE are similar between the two models. We can see that they are better on the training set rather than validation set: slight overfitting.
+
+**Multivariate Adaptive Regression Splines**
+
+```{r}
+mars1 <- earth(Enroll ~ .,  data = train_data, glm=list(family=poisson))
+mars1$cuts
+mars1$coefficients
+```
+
+From the output *cuts* we can observe all the basis function considered by MARS model and related cuts.
+
+The estimated equation corresponds to
+
+$$\log(\widehat{\text{Enroll}}) = \ 2749.4431 + 0.1769 \cdot h(\text{F.Undergrad} - 16505) - 0.1143 \cdot h(16505 - \text{F.Undergrad}) - 0.2409 \cdot h(5125 - \text{Accept}) + 0.2724 \cdot h(\text{Accept} - 8683) + 0.0568 \cdot h(5072 - \text{Room.Board})  + 10.0123 \cdot h(\text{Top10perc} - 57) + 0.0450 \cdot h(7294 - \text{Apps})$$
+
+where $h(x) = max(0,x)$.
+
+```{r}
+plot(mars1, which=1)
+
+```
+
+Comments:
+
+- GRSq stands for Generalized R-Squared: it is penalized by the complexity of the model.
+- RSq stands for R-squared
+- nbr preds stands for number of unique predictors
+
+The best model is chosen when GRS and RS are high. Even if RS is still growing as the predictors increase, the best model considered just 8 predictors since the GRS starts to decrease.
+
+```{r}
+plot(evimp(mars1))
+```
+
+The plot shows how many subsets contain the variables in the x-axis and how much the residual sum of squares and the generalized cross-validation decrease when each variable is included in the model. *F. Undergrad* is the covariate most included in the subsets while after including *Accept* we have the most strong decrease of RSS and GCV.
+
+```{r}
+#train
+pred_mars_1_train <- predict(mars1, train_data[,-4])
+#val
+pred_mars_1 <- predict(mars1, val_data[,-4])
+
+cat("RMSE on training data \n")
+(rmse_mars_1_train <- rmse(train_data$Enroll, pred_mars_1_train)) #1129.28
+
+cat("RMSE on validation data \n")
+(rmse_mars_1<- rmse(val_data$Enroll, pred_mars_1)) #1439.031
+```
+
+The result is quite similar to those obtained by GAM models.
+
+## **Classification task**
+
+Let's consider the same dataset by trasforming our response variable (*Enroll*) in a binary one. We can define the new variable as
+
+$$ Y = \begin{cases} 1, & \mbox{if Enroll } >= 430\\ 0, & \mbox{otherwise}
+\end{cases}$$
+
+```{r}
+data_college <- data_college |>
+  mutate(Y = if_else(Enroll > 430, 1, 0))
+
+data_college <- data_college |> select(-Enroll)
+```
+
+In Binary tasks, it's always important to check if the response variable is balanced or not. 
+
+```{r}
+ggplot(data_college, aes(x = Y)) +
+  geom_bar(aes(y = ..count..), fill = "pink") +
+  geom_text(aes(label = scales::percent(..prop.., accuracy = 0.1),
+                y = ..count..), 
+            stat = "count",
+            vjust = -0.5) +
+  labs(x = "Y",
+       y = "Frequency") +
+  theme_minimal()
+```
+
+The two categories are balanced. Then, we don't need to use specific method to deal with imbalanced response issues.
+Now, let's split again in training and validation sets
+
+```{r}
+
+# Set seed for reproducibility
+set.seed(123) 
+
+# Create stratified split
+split_obj <- initial_split(data_college, prop = 0.8, strata = Y)  # Stratify by the binary variable
+
+# Extract the splits
+train_data <- training(split_obj)
+val_data <- testing(split_obj)
+```
+
+### **Generalized Additive Models (GAMs)**
+
+We can try to fit the same models by changing distribution family as follows
+
+```{r}
+#Gam with natural splines
+
+gam_1 <- glm(Y ~ Apps + Accept + Private + F.Undergrad + ns(Top10perc, 3) + ns(Top25perc,3) + P.Undergrad + ns(Outstate,3) + ns(Room.Board, 4) + ns(Books) + ns(Personal,3) + ns(PhD,3) + ns(Terminal,3) + ns(S.F.Ratio,3) + ns(perc.alumni,3) + ns(Expend,3) + ns(Grad.Rate,3),family=binomial, data=train_data)
+
+summary(gam_1)
+
+#GAM with smoothing splines
+
+gam_2 <- gam(Y ~ Apps + Accept + Private + F.Undergrad + 
+               s(Top10perc, k=3) + s(Top25perc, k=3) + P.Undergrad + 
+               s(Outstate, k=3) + s(Room.Board, k=4) + s(Books, k=3) + 
+               s(Personal, k=3) + s(PhD, k=3) + s(Terminal, k=3) + 
+               s(S.F.Ratio, k=3) + s(perc.alumni, k=3) + s(Expend, k=3) + 
+               s(Grad.Rate, k=3), 
+             family = binomial(), 
+             data = train_data,
+             method = "REML")
+
+summary(gam_2)
+
+```
+
+In this case, we can evaluate our predictions using the accuracy (percentage of observations classified correctly), as follows
+
+```{r}
+#prediction
+#train
+pred_gam_1_train <- predict(gam_1, train_data[,-18], type = "response")
+pred_gam_2_train <- predict(gam_2, train_data[,-18], type = "response")
+
+#val
+pred_gam_1 <- predict(gam_1, val_data[,-18], type = "response")
+pred_gam_2 <- predict(gam_2, val_data[,-18], type = "response")
+
+
+accuracy <- function(truth, predicted) {
+  mean(truth == predicted)
+}
+
+pred_gam_1_train <- ifelse(pred_gam_1_train >0.5, 1, 0 )
+pred_gam_2_train <- ifelse(pred_gam_2_train >0.5, 1, 0 )
+
+cat("Accuracy on training data \n")
+(acc_gam_1_train <- accuracy(train_data$Y, pred_gam_1_train)) #0.973
+(acc_gam_2_train <- accuracy(train_data$Y, pred_gam_2_train)) #0.971
+
+```
+
+The values of accuracy are closed to 1... this means that the models are quite good!
+
+```{r}
+pred_gam_1 <- ifelse(pred_gam_1 >0.5, 1, 0 )
+pred_gam_2 <- ifelse(pred_gam_2 >0.5, 1, 0 )
+
+cat("Accuracy on validation data \n")
+(acc_gam_1 <- accuracy(val_data$Y, pred_gam_1)) #0.942
+(acc_gam_2 <- accuracy(val_data$Y, pred_gam_2)) #0.949
+```
+
+Also in the validation set, the values of accuracy are quite good! Even in this case, we can see that in the training set we obtained higher values. However, we don't have strong concerns.
+
+### **Multivariate Adaptive Regression Splines**
+
+```{r}
+mars1 <- earth(Y ~ .,  data = train_data, glm=list(family=binomial))
+mars1$cuts
+mars1$coefficients
+```
+
+In this case, the estimated equation corresponds to
+
+$$\text{logit}(\widehat{p}) = \log\left(\frac{\widehat{p}}{1 - \widehat{p}}\right) =  -0.0831  - 0.000199 \cdot h(\text{F.Undergrad} - 2754) + 0.000116 \cdot h(2754 - \text{F.Undergrad})- 0.000128 \cdot h(1924 - \text{Accept})+ 0.0000495 \cdot h(4765 - \text{Room.Board}) + \ldots $$
+
+where $\widehat{p}$ is the estimated probability of $Y=1|X$ (with X we mean covariates).
+
+```{r}
+plot(mars1, which=1)
+```
+
+Also in this case, the MARS model chose the best model which has a good RSS and GCV. Indeed, the number of unique terms equal to 16 guarantees a good value of GCV before the decrease.
+
+```{r}
+plot(evimp(mars1))
+```
+
+See the comment of the previous plot. The conclusion is still the same. Additionally, we can observe that in this case we have more important covariates. *Book*, *Top25perc* and *P.Undergrad*, in this case, contribute a bit to reduce rss and gcv.
+
+
+```{r}
+#train
+pred_mars_1_train <- predict(mars1, train_data[,-18], type = "response")
+#val
+pred_mars_1 <- predict(mars1, val_data[,-18], type = "response")
+
+pred_mars_1_train <- ifelse(pred_mars_1_train >0.5, 1, 0 )
+pred_mars_1 <- ifelse(pred_mars_1 >0.5, 1, 0 )
+
+cat("Accuracy on training data \n")
+(acc_mars_1_train <- accuracy(train_data$Y, pred_mars_1_train)) #0.969
+
+cat("Accuracy on validation data \n")
+(acc_mars_1<- accuracy(val_data$Y, pred_mars_1)) #0.942
+
+```
+
+Also in this case we obtained a good percentage of correct prediction. We can also observe that MARS is able to reduce a bit overfitting issues.
+
