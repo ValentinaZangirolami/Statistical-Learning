@@ -76,23 +76,23 @@ plot(gam_2)
 
 #prediction
 #train
-pred_gam_1_train <- predict(gam_1, train_data[,-4])
-pred_gam_2_train <- predict(gam_2, train_data[,-4])
+pred_gam_1_train <- predict(gam_1, train_data[,-4], type = "response")
+pred_gam_2_train <- predict(gam_2, train_data[,-4], type = "response")
 #val
-pred_gam_1 <- predict(gam_1, val_data[,-4])
-pred_gam_2 <- predict(gam_2, val_data[,-4])
+pred_gam_1 <- predict(gam_1, val_data[,-4], type = "response")
+pred_gam_2 <- predict(gam_2, val_data[,-4], type = "response")
 
 rmse <- function(actual, predicted) {
   sqrt(mean((actual - predicted)^2))
 }
 
 cat("RMSE on training data \n")
-(rmse_gam_1_train <- rmse(train_data$Enroll, pred_gam_1_train)) #1129.292
-(rmse_gam_2_train <- rmse(train_data$Enroll, pred_gam_2_train)) #1129.295
+(rmse_gam_1_train <- rmse(train_data$Enroll, pred_gam_1_train)) #308.79
+(rmse_gam_2_train <- rmse(train_data$Enroll, pred_gam_2_train)) #332.18
 
 cat("RMSE on validation data \n")
-(rmse_gam_1 <- rmse(val_data$Enroll, pred_gam_1)) #1439.029
-(rmse_gam_2 <- rmse(val_data$Enroll, pred_gam_2)) #1439.029
+(rmse_gam_1 <- rmse(val_data$Enroll, pred_gam_1)) #1076.63
+(rmse_gam_2 <- rmse(val_data$Enroll, pred_gam_2)) #932.613
 
 # Your turn! Propose new equation for gam: you can try to change the smooth terms inside the equation. 
 # Eventually, have a look of the help page. And compute the final rmse.
@@ -105,9 +105,9 @@ plot(mars1)
 plot(evimp(mars1))
 
 #train
-pred_mars_1_train <- predict(mars1, train_data[,-4])
+pred_mars_1_train <- predict(mars1, train_data[,-4], type = "response")
 #val
-pred_mars_1 <- predict(mars1, val_data[,-4])
+pred_mars_1 <- predict(mars1, val_data[,-4], type = "response")
 
 cat("RMSE on training data \n")
 (rmse_mars_1_train <- rmse(train_data$Enroll, pred_mars_1_train)) #1129.28
