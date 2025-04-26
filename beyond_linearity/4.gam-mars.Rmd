@@ -118,11 +118,11 @@ All the coefficients are significant and the R2 adj is really high. This means t
 **Comparison of predictions**
 
 ```{r}
-pred_gam_1_train <- predict(gam_1, train_data[,-4])
-pred_gam_2_train <- predict(gam_2, train_data[,-4])
+pred_gam_1_train <- predict(gam_1, train_data[,-4], type = "response")
+pred_gam_2_train <- predict(gam_2, train_data[,-4], type = "response")
 
-pred_gam_1 <- predict(gam_1, val_data[,-4])
-pred_gam_2 <- predict(gam_2, val_data[,-4])
+pred_gam_1 <- predict(gam_1, val_data[,-4], type = "response")
+pred_gam_2 <- predict(gam_2, val_data[,-4], type = "response")
 
 rmse <- function(actual, predicted) {
   sqrt(mean((actual - predicted)^2))
@@ -137,7 +137,7 @@ cat("RMSE on validation data \n")
 
 ```
 
-The RMSE are similar between the two models. We can see that they are better on the training set rather than validation set: slight overfitting.
+The RMSE is better in the first model while considering training set. But in the first model we can see a big issue about overfitting. The second model performs better in the validation set even if it also suffers from overfitting.
 
 **Multivariate Adaptive Regression Splines**
 
@@ -176,18 +176,18 @@ The plot shows how many subsets contain the variables in the x-axis and how much
 
 ```{r}
 #train
-pred_mars_1_train <- predict(mars1, train_data[,-4])
+pred_mars_1_train <- predict(mars1, train_data[,-4], type = "response")
 #val
-pred_mars_1 <- predict(mars1, val_data[,-4])
+pred_mars_1 <- predict(mars1, val_data[,-4], type = "response")
 
 cat("RMSE on training data \n")
-(rmse_mars_1_train <- rmse(train_data$Enroll, pred_mars_1_train)) #1129.28
+(rmse_mars_1_train <- rmse(train_data$Enroll, pred_mars_1_train)) #225.46
 
 cat("RMSE on validation data \n")
-(rmse_mars_1<- rmse(val_data$Enroll, pred_mars_1)) #1439.031
+(rmse_mars_1<- rmse(val_data$Enroll, pred_mars_1)) #321.21
 ```
 
-The result is quite similar to those obtained by GAM models.
+MARS model is better than GAMs and it overcomes overfitting concerns.
 
 ## **Classification task**
 

@@ -1,0 +1,23 @@
+---
+title: "Gradient Boosting"
+author: "Valentina Zangirolami (valentina.zangirolami@unimib.it)"
+date: "2025-05-14"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE}
+#load libraries
+library(car)
+library(ggplot2)
+library(tidymodels)
+library(tidyverse)
+```
+
+## ***Dataset: ESG DATA***
+```{r, include=TRUE}
+esg_data <- read.csv("esg_financial_dataset.csv")
+head(esg_data)
+```
+
+See the description and data analysis in Multiple Linear regression file.
+

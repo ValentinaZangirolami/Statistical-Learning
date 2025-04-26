@@ -94,8 +94,7 @@ cat("RMSE on validation data \n")
 (rmse_gam_1 <- rmse(val_data$Enroll, pred_gam_1)) #1076.63
 (rmse_gam_2 <- rmse(val_data$Enroll, pred_gam_2)) #932.613
 
-# Your turn! Propose new equation for gam: you can try to change the smooth terms inside the equation. 
-# Eventually, have a look of the help page. And compute the final rmse.
+#mars
 
 mars1 <- earth(Enroll ~ .,  data = train_data, glm=list(family=poisson))
 mars1$cuts
@@ -221,3 +220,5 @@ cat("Accuracy on training data \n")
 cat("Accuracy on validation data \n")
 (acc_mars_1<- accuracy(val_data$Y, pred_mars_1)) #0.942
 
+# Your turn! Propose new equation for gam: you can try to change the smooth terms inside the equation. 
+# Eventually, have a look of the help page. And compute the final rmse.
