@@ -30,7 +30,7 @@ Before starting, we need to use holdout sample or cross-validation to evaluate o
 
 ```{r}
 set.seed(123)  # For reproducibility
-split <- initial_split(data_college, prop = 0.8)
+split <- initial_split(esg_data, prop = 0.8)
 
 train_data <- training(split)
 val_data <- testing(split)
@@ -86,16 +86,139 @@ Finally, we can fit our model
 ```{r}
 trees_cv_results <- fit_resamples(rt_work, folds)
 trees_fit_1 <- fit(rt_work, train_data)
-collect_metrics(trees_cv_results) 
+
 # Get predictions on training data
 train_preds <- predict(trees_fit_1, new_data = train_data) %>% 
   bind_cols(train_data)  # Attach true values
+# Get predictions on validation data
+val_preds <- predict(trees_fit_1, new_data = val_data) %>% 
+  bind_cols(val_data)  # Attach true values
 
 # Compute metrics (e.g., RMSE, R-squared for regression)
 metrics <- metric_set(rmse, rsq)
 train_metrics <- metrics(train_preds, truth = MarketCap, estimate = .pred)
+val_metrics <- metrics(val_preds, truth = MarketCap, estimate = .pred)
 
-train_metrics
+round(train_metrics$.estimate, 4)
+round(val_metrics$.estimate,4)
 ```
 
+The results highlight a slight problem of overfitting, then it's better avoiding to increase the complexity of the tree. We can try to increase cost complexity
+
+New hyperparameters:
+
+```{r}
+tree_spec <- decision_tree(cost_complexity = 0.1, tree_depth=30, min_n=20) |>
+  set_engine("rpart") |> set_mode("regression")
+
+rt_work <- 
+  workflow() |>
+  add_model(tree_spec) |> 
+  add_recipe(esg_recipe)
+
+trees_fit_1 <- fit(rt_work, train_data)
+
+# Get predictions on training data
+train_preds <- predict(trees_fit_1, new_data = train_data) %>% 
+  bind_cols(train_data)  # Attach true values
+# Get predictions on validation data
+val_preds <- predict(trees_fit_1, new_data = val_data) %>% 
+  bind_cols(val_data)  # Attach true values
+
+# Compute metrics (e.g., RMSE, R-squared for regression)
+metrics <- metric_set(rmse, rsq)
+train_metrics <- metrics(train_preds, truth = MarketCap, estimate = .pred)
+val_metrics <- metrics(val_preds, truth = MarketCap, estimate = .pred)
+
+round(train_metrics$.estimate, 4)
+round(val_metrics$.estimate,4)
+
+```
+
+We obtained worst results, and we prefer the first model. 
+
+Even if it is expensive, we can use grid search with cross-validation to select best hyperparameters
+
+```{r}
+tree_spec <- decision_tree(cost_complexity = 0.01, tree_depth=tune(), min_n=tune()) |>
+  set_engine("rpart") |> set_mode("regression")
+
+tree_grid <- grid_regular(
+  tree_depth(),
+  min_n(),
+  levels = 20  # Number of values for each parameter
+)
+
+rt_work <- 
+  workflow() |>
+  add_model(tree_spec) |> 
+  add_recipe(esg_recipe)
+
+
+tree_res <- tune_grid(
+  rt_work,
+  resamples = folds,
+  grid = tree_grid,
+  metrics = metric_set(rmse, rsq)  # Choose appropriate metrics
+)
+
+best_tree <- select_best(tree_res,metric = "rmse")
+
+final_wf <- finalize_workflow(rt_work, best_tree)
+
+final_fit <- fit(final_wf, train_data)
+
+# Get predictions on training data
+train_preds <- predict(final_fit, new_data = train_data) %>% 
+  bind_cols(train_data)  # Attach true values
+# Get predictions on validation data
+val_preds <- predict(final_fit, new_data = val_data) %>% 
+  bind_cols(val_data)  # Attach true values
+
+# Compute metrics (e.g., RMSE, R-squared for regression)
+metrics <- metric_set(rmse, rsq)
+train_metrics <- metrics(train_preds, truth = MarketCap, estimate = .pred)
+val_metrics <- metrics(val_preds, truth = MarketCap, estimate = .pred)
+
+round(train_metrics$.estimate, 4)
+round(val_metrics$.estimate,4)
+```
+
+We obtained the best results in validation set where overfitting is not a strong concern.
+
+The best hyperparameters are
+
+```{r}
+best_tree
+```
+
+
+We can make the plot of this last model.
+
+```{r}
+
+final_model <- extract_fit_engine(final_fit)
+
+rpart.plot(
+ final_model,
+  type = 4,
+  extra = 101,
+  box.palette = "Blues",
+  nn = TRUE,
+  fallen.leaves = FALSE,
+  shadow.col = "gray"
+)
+
+```
+
+In the first line, we can observe that the first splitting variable was *Revenue* with the splitting value *53e+3*. We obtain two nodes that are split with two different splitting variables: on the left, *Revenue* is chosen again and, on the right, *ProfitMargin*. At the end of each path, we can obtain the estimated value of the response for each partition of the feature space.
+
+**Feature importance**
+
+```{r}
+vip(final_model, geom = "point", horizontal = FALSE) +
+  ggtitle("Decision Tree Feature Importance") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+```
 
