@@ -115,10 +115,10 @@ round(train_metrics$.estimate, 4)
 round(val_metrics$.estimate,4)
 ```
 
-The results are promising but we still observe overfitting issues. We need to reduce complexity
+The results are promising but we still observe overfitting issues. We need to reduce complexity or we can increase the number of trees
 
 ```{r}
-rf_spec <- rand_forest(mtry = 8, trees = 6, min_n = 8) %>%
+rf_spec <- rand_forest(mtry = 8, trees = 100, min_n = 8) %>%
   set_engine("ranger", importance = "impurity") %>%
   set_mode("regression")
 
