@@ -6,11 +6,10 @@
 #                           Valentina Zangirolami                              #
 ################################################################################
 
-# you can find the notes of this lecture in my github: https://github.com/ValentinaZangirolami/Statistical-Learning
-
 #load libraries
 library(car)
 library(vip)
+library(C50)
 library(ggplot2)
 library(tidymodels)
 library(baguette)
@@ -30,28 +29,28 @@ val_data <- testing(split)
 #bagging
 
 # Create recipe
-bag_recipe <- recipe(MarketCap ~ ., data = train_data) %>%
-  step_dummy(all_nominal_predictors()) %>%
+bag_recipe <- recipe(MarketCap ~ ., data = train_data) |>
+  step_dummy(all_nominal_predictors()) |>
   step_normalize(all_numeric_predictors())
 
 # Create bagging model
-bag_spec <- bag_tree(cost_complexity = 0.01, tree_depth = 30, min_n = 20) %>%
-  set_engine("rpart", times = 50) %>%
+bag_spec <- bag_tree(cost_complexity = 0.01, tree_depth = 30, min_n = 20) |>
+  set_engine("rpart", times = 50) |>
   set_mode("regression")
 
 # Create workflow
-bag_wf <- workflow() %>%
-  add_recipe(bag_recipe) %>%
+bag_wf <- workflow() |>
+  add_recipe(bag_recipe) |>
   add_model(bag_spec)
 
 # Fit model
 bag_fit <- fit(bag_wf, data = train_data)
 
 # Get predictions on training data
-train_preds <- predict(bag_fit, new_data = train_data) %>% 
+train_preds <- predict(bag_fit, new_data = train_data) |> 
   bind_cols(train_data)  # Attach true values
 # Get predictions on validation data
-val_preds <- predict(bag_fit, new_data = val_data) %>% 
+val_preds <- predict(bag_fit, new_data = val_data) |> 
   bind_cols(val_data)  # Attach true values
 
 # Compute metrics (e.g., RMSE, R-squared for regression)
@@ -64,23 +63,23 @@ round(val_metrics$.estimate,4)
 
 #random forest
 
-rf_spec <- rand_forest(mtry = 8, trees = 10, min_n = 8) %>%
-  set_engine("ranger", importance = "impurity") %>%
+rf_spec <- rand_forest(mtry = 8, trees = 10, min_n = 8) |>
+  set_engine("ranger", importance = "impurity") |>
   set_mode("regression")
 
 # Create workflow
-rf_wf <- workflow() %>%
-  add_recipe(esg_recipe) %>%
+rf_wf <- workflow() |>
+  add_recipe(esg_recipe) |>
   add_model(rf_spec)
 
 # Fit model
 rf_fit <- fit(rf_wf, data = train_data)
 
 # Get predictions on training data
-train_preds <- predict(rf_fit, new_data = train_data) %>% 
+train_preds <- predict(rf_fit, new_data = train_data) |> 
   bind_cols(train_data)  # Attach true values
 # Get predictions on validation data
-val_preds <- predict(rf_fit, new_data = val_data) %>% 
+val_preds <- predict(rf_fit, new_data = val_data) |> 
   bind_cols(val_data)  # Attach true values
 
 # Compute metrics (e.g., RMSE, R-squared for regression)
@@ -93,23 +92,23 @@ round(val_metrics$.estimate,4)
 
 # reduce complexity
 
-rf_spec <- rand_forest(mtry = 8, trees = 6, min_n = 8) %>%
-  set_engine("ranger", importance = "impurity") %>%
+rf_spec <- rand_forest(mtry = 8, trees = 6, min_n = 8) |>
+  set_engine("ranger", importance = "impurity") |>
   set_mode("regression")
 
 # Create workflow
-rf_wf <- workflow() %>%
-  add_recipe(esg_recipe) %>%
+rf_wf <- workflow() |>
+  add_recipe(esg_recipe) |>
   add_model(rf_spec)
 
 # Fit model
 rf_fit <- fit(rf_wf, data = train_data)
 
 # Get predictions on training data
-train_preds <- predict(rf_fit, new_data = train_data) %>% 
+train_preds <- predict(rf_fit, new_data = train_data) |> 
   bind_cols(train_data)  # Attach true values
 # Get predictions on validation data
-val_preds <- predict(rf_fit, new_data = val_data) %>% 
+val_preds <- predict(rf_fit, new_data = val_data) |> 
   bind_cols(val_data)  # Attach true values
 
 # Compute metrics (e.g., RMSE, R-squared for regression)

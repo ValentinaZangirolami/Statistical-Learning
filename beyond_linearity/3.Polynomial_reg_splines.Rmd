@@ -1,0 +1,295 @@
+---
+title: "Polynomial Regression and Splines"
+author: "Valentina Zangirolami (valentina.zangirolami@unimib.it)"
+date: "2025-04-30"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE}
+#load libraries
+library(car)
+library(ggplot2)
+library(ISLR2)
+library(splines)
+library(tidyverse)
+```
+
+## ***Dataset: Boston***
+
+```{r, include=TRUE}
+data_house <- Boston
+data_house <- data_house |> select(c(nox, dis))
+
+head(data_house)
+```
+
+Variables: (1) Response variable: nox (nitrogen oxides concentration in parts per 10 million), (2) Covariate: dis (the weighted mean of distances to five Boston employment centers)
+
+```{r, include=TRUE}
+ggplot(data_house, aes(x = dis, y = nox)) +
+  geom_point(size = 2)
+  labs(
+    x = "dis",
+    y = "nox"
+  ) + 
+  theme_minimal()
+```
+The relationship among the two variables is non-linear. 
+
+### **Polynomial regression**
+
+As you already saw during theoretical lecture, polynomial regression allows to model a non-linear relationship between the response and the covariates by adding a polynomial term into the linear regression model. It leverages the good properties of a standard linear regression models while introducing flexibility. 
+
+In this case, we can think that a good approximation can be obtained by adding 2-degree polynomial. Let's check
+
+```{r, include=TRUE}
+
+poly_lm <- lm(nox~poly(dis, 2), data=data_house)
+
+summary(poly_lm)
+```
+All the coefficients are significant at any $\alpha$ level (see previous exercise lecture - Multiple Regression Model - for values of lm output). The value of R2 is not bad. The estimated polynomal regression can be written as
+
+$$\hat{nox} = 0.55 - 2 dis + 0.86 dis^2$$
+```{r, include=TRUE}
+
+par(mfrow=c(2,2))
+plot(poly_lm)
+
+```
+
+Interpretation:
+
+- Top-left: we can observe that there is a slight pattern --> probably increasing the degree of our polynomial regression we can solve the concern
+- Top-right: it highlights a skewed distribution
+- Bottom-left: it seems there is a slight issue of heteroskedasticity
+- Bottom-right: no outlier, few leverage points but not influential.
+
+Let's try with 3-degree polynomial
+
+
+```{r, include=TRUE}
+
+poly_lm_2 <- lm(nox~poly(dis, 3), data=data_house)
+
+summary(poly_lm_2)
+```
+
+All the coefficients are still significant. The R2 is improved, thus this model seems to fit better data.
+
+The estimated polynomal regression can be written as
+
+$$\hat{nox} = 0.55 - 2 dis + 0.86 dis^2 - 0.32 dis^3$$
+
+```{r, include=TRUE}
+par(mfrow=c(2,2))
+plot(poly_lm_2)
+```
+
+Interpretation:
+
+- Top-left: linearity improves
+- Top-right: it highlights a skewed distribution
+- Bottom-left: same as before
+- Bottom-right: no outlier, few leverage points but not influential.
+
+We can visualize our approximations below
+
+```{r, include=TRUE}
+
+ggplot(data_house, aes(x = dis, y = nox)) +
+  geom_point(size = 1, shape=3) +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), color = "red") +  # Adds 1st regression line
+  geom_smooth(method = "lm", formula = y ~ poly(x, 3), color = "blue") + # Adds 2nd regression line
+  labs(
+    x = "Distance Boston Centers",
+    y = "NO concentration"
+  ) + 
+  theme_minimal()
+
+```
+
+Also from a graphical point of view, the 3-degree polynomial seems to fit better the data.
+
+### **Regression Spline**
+
+Instead of polynomial regression, looking at the first plot it is reasonable that regression splines can be useful to obtain a good model for our data. 
+
+With regression spline we can obtain different estimation of our coefficients (thus different estimated linear regression lines or polynomial regression lines) for different range of the covariate values. 
+
+##### **Linear Splines**
+
+Starting from linear splines, looking at the first plot we can identify, at least, three different regions of *dis*.
+
+```{r, include=TRUE}
+
+mod_spline <- lm(nox ~ bs(dis , knots = c(3.75, 6.25), degree = 1), data = data_house)
+summary(mod_spline)
+```
+
+The estimated regression spline corresponds to
+
+$$\hat{nox} = 0.7379 -0.2465 dis -0.2955 (dis - 3.75)_+ -0.3513 (dis - 6.25)_+$$
+
+And breaking down for each region created by the two knots:
+
+- $dis < 3.75$: $\hat{nox} = 0.7379 -0.2465 dis$
+- $3.75 < dis < 6.25$: $\hat{nox} = 0.7379 -0.2465 dis -0.2955 (dis - 3.75) = (0.7379 + 1.1081) - (0.2465 + 0.2955) dis = 1.846 - 0.542 dis$
+- $dis > 6.25$: $\hat{nox} = 0.7379 -0.2465 dis -0.2955 (dis - 3.75) -0.3513 (dis - 6.25) = (0.7379 + 1.1081 + 2.1956) - (0.2465 + 0.2955 + 0.3513) dis = 4.0416 - 0.8933 dis$
+
+All the coefficient are significant. The R2 is better than the two polynomial regression we considered so far.
+
+We can try to add a new knot while still considering linear splines.
+
+```{r, include=TRUE}
+
+mod_spline_2 <- lm(nox ~ bs(dis , knots = c(2.5, 5, 7.5), degree = 1), data = data_house)
+summary(mod_spline_2)
+```
+
+In this case, the estimated regression spline can be written as 
+
+$$\hat{nox} = 0.7504 -0.157 dis -0.3023 (dis - 2.5)_+ -0.3199 (dis - 5)_+ -0.3536 (dis - 7.5)_+$$
+
+And breaking down for each region created by the two knots:
+
+- $dis < 2.5$: $\hat{nox} = 0.7504 -0.157 dis$
+- $2.5 < dis < 5$: $\hat{nox} = 1.5062 - 0.4593 dis$
+- $5 < dis < 7.5$: $\hat{nox} = 3.1057 - 0.7792 dis$
+- $dis > 7.5$: $\hat{nox} = 5.7577 - 1.1328 dis$
+
+All the coefficient are significant. The R2 is less than the previous model.
+
+Let's visualize these two regression lines with linear splines.
+
+```{r}
+ggplot(data_house, aes(x = dis, y = nox)) +
+  geom_point(size = 1, shape=3) +
+  geom_smooth(method = "lm", formula = y ~ bs(x , knots = c(3.75, 6.25), degree = 1), color = "red", se = FALSE) +  # Adds 1st regression line
+  geom_smooth(method = "lm", formula = y ~ bs(x , knots = c(2.5, 5, 7.5), degree = 1), color = "pink", se = FALSE) + # Adds 2nd regression line
+  labs(
+    x = "Distance Boston Centers",
+    y = "NO concentration"
+  ) + 
+  theme_minimal()
+```
+
+##### **Cubic Splines**
+
+Looking at the first plot, in this case it can make sense evaluating 1 or 2 knots.
+
+Starting from the case of 1 knot, we can split the regions of *dis* with the knot=5.
+
+```{r, include=TRUE}
+mod_spline_3 <- lm(nox ~ bs(dis , knots = c(5), degree = 3), data = data_house)
+summary(mod_spline_3)
+```
+
+The estimated regression spline corresponds to
+
+$$\hat{nox} = 0.7580 -0.1828 dis - 0.3976 dis^2 - 0.3007 dis^3 - 0.3761 (dis - 5)^3_+$$
+
+And breaking down for each region created by the single knot:
+
+- $dis < 5$: $\hat{nox} = 0.7580 -0.1828 dis - 0.3976 dis^2 - 0.3007 dis^3 $
+- $dis > 5$: $\hat{nox} = 0.7580 -0.1828 dis - 0.3976 dis^2 - 0.3007 dis^3 - 0.3761(dis^3 - 15 dis^2 + 75 dis - 125)= 47.77 + 28.39 dis + 5.2439 dis^2 + 0.6768 dis^3$
+
+All the coefficient are significant at any $\alpha$ level. The R2 is still less than the first regression spline model but better than the previous one.
+
+Looking at the first plot, it makes sense considering 2 knots as follows
+
+```{r, include=TRUE}
+mod_spline_4 <- lm(nox ~ bs(dis , knots = c(3.75, 6.25), degree = 3), data = data_house)
+summary(mod_spline_4)
+```
+The estimated regression spline corresponds to
+
+$$\hat{nox} = 0.7327 -0.0636 dis - 0.2848 dis^2 - 0.2678 dis^3 - 0.3796 (dis - 3.75)^3_+ - 0.2982 (dis - 6.25)^3_+$$
+
+In this case, all the coefficients are significant except the coefficient of *dis* that is significant at level of $\alpha$ greater than 0.01. We obtained the best R2 among all models.
+
+Let's visualize these two regression lines with cubic splines.
+
+```{r}
+ggplot(data_house, aes(x = dis, y = nox)) +
+  geom_point(size = 1, shape=3) +
+  geom_smooth(method = "lm", formula = y ~ bs(x , knots = c(5), degree = 3), color = "blue", se = FALSE) +  # Adds 1st regression line
+  geom_smooth(method = "lm", formula = y ~ bs(x , , knots = c(3.75, 6.25), degree = 3), color = "green", se = FALSE) + # Adds 2nd regression line
+  labs(
+    x = "Distance Boston Centers",
+    y = "NO concentration"
+  ) + 
+  theme_minimal()
+```
+
+##### **Natural Splines**
+
+Another interesting regression spline is the natural spline which require additional boundary constraints: the natural
+function is required to be linear at the boundary (see theoretical lecture - natural cubic spline).
+
+
+```{r, include=TRUE}
+mod_nat_spline <- lm(nox ~ ns(dis , knots = c(3.75, 6.25)), data = data_house)
+summary(mod_nat_spline)
+```
+The estimated regression spline corresponds to
+
+$$\hat{nox} = 0.7464 -0.2144 dis - 0.5797 (dis - 3.75)^3_+ - 0.2178 (dis - 6.25)^3_+$$
+
+All the coefficients are significant. The R2 is less than the twin cubic spline (w/o additional constraints). However, it can be also possible that the previous model overfit.
+
+```{r}
+ggplot(data_house, aes(x = dis, y = nox)) +
+  geom_point(size = 1, shape=3) +
+  geom_smooth(method = "lm", formula = y ~ ns(x, knots = c(3.75, 6.25)), color = "violet") +  # Adds regression line
+  labs(
+    x = "Distance Boston Centers",
+    y = "NO concentration"
+  ) + 
+  theme_minimal()
+```
+
+##### **Smoothing Splines**
+
+Smoothing splines find a function of *dis* that fit well data while penalizing its variability. The importance of the latter is regulated by the tuning parameter $\lambda$ which controls the roughness of the smoothing spline (hence, the effective degree of freedom):
+
+- when $\lambda$ increases from $0$ to $\infty$, the degree of freedom decreases from $506$ to $2$
+
+If we try different value of degree of freedoms (df), we can show that increasing the value the function should fit better the data. 
+
+```{r, include=TRUE}
+mod_smooth_spline <- smooth.spline(data_house$dis, data_house$nox, df = 4)
+data_house$pred <- predict(mod_smooth_spline, data_house$dis)$y
+mod_smooth_spline$lambda
+
+mod_smooth_spline_2 <- smooth.spline(data_house$dis, data_house$nox, df = 10)
+data_house$pred_2 <- predict(mod_smooth_spline_2, data_house$dis)$y
+mod_smooth_spline_2$lambda
+
+mod_smooth_spline_3 <- smooth.spline(data_house$dis, data_house$nox, df = 200)
+data_house$pred_3 <- predict(mod_smooth_spline_3, data_house$dis)$y
+mod_smooth_spline_3$lambda
+```
+
+
+```{r, include=TRUE}
+ggplot(data_house, aes(y=nox, x=dis)) + geom_point(size = 1, shape=3) + geom_line(aes(y = pred), color = "red", linewidth = 1) + geom_line(aes(y = pred_2), color = "orange", linewidth = 1) + geom_line(aes(y = pred_3), color = "violet", linewidth = 1) +
+  labs(title = "Smoothing Splines", x = "Distance Boston Centers", y = "NO concentrations")+ 
+  theme_minimal()
+```
+
+From the plot, we can observe that the function related to df=4 and df=10 are more smooth than the function with df=200.
+
+```{r, include=TRUE, warning=FALSE, message=FALSE}
+mod_smooth_spline_cv <- smooth.spline(data_house$dis, data_house$nox, cv=TRUE)
+data_house$pred_cv <- predict(mod_smooth_spline_cv, data_house$dis)$y
+mod_smooth_spline_cv$lambda
+```
+
+```{r, include=TRUE}
+ggplot(data_house, aes(y=nox, x=dis)) + geom_point(size = 1, shape=3) + geom_line(aes(y = pred_cv), color = "blue", linewidth = 1) +
+  labs(title = "Smoothing Splines", x = "Distance Boston Centers", y = "NO concentrations")+ 
+  theme_minimal()
+```
+
+The value of $\lambda$ is greater than the last model, indeed the plot shows a smooth function which try to interpolate better data than df=4 and df=10.

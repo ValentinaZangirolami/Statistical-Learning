@@ -1,0 +1,217 @@
+---
+title: "Ensemble methods"
+author: "Valentina Zangirolami (valentina.zangirolami@unimib.it)"
+date: "2025-05-09"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE}
+#load libraries
+library(car)
+library(ggplot2)
+library(tidymodels)
+library(baguette)
+library(fastAdaboost)
+library(vip)
+library(tidyverse)
+```
+
+## ***Dataset: ESG DATA***
+
+```{r, include=TRUE}
+esg_data <- read.csv("esg_financial_dataset.csv")
+head(esg_data)
+```
+
+See the description and data analysis in Multiple Linear regression file.
+
+As before, we should split in training and validation sets
+
+```{r}
+set.seed(123)  # For reproducibility
+split <- initial_split(esg_data, prop = 0.8)
+
+train_data <- training(split)
+val_data <- testing(split)
+```
+
+#### **Ensemble methods: Bagging**
+
+Bagging implementation is already provided by bag_tree() from *baguette* library.
+We try to implement bagging into a regression tree with the same hyperparameters of our first model in decision_trees.R
+
+```{r}
+# Create recipe
+esg_recipe <- recipe(MarketCap ~ ., data = train_data) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_normalize(all_numeric_predictors())
+
+# Create bagging model
+bag_spec <- bag_tree(cost_complexity = 0.01, tree_depth = 30, min_n = 20) %>%
+  set_engine("rpart", times = 50) %>%
+  set_mode("regression")
+
+# Create workflow
+bag_wf <- workflow() %>%
+  add_recipe(esg_recipe) %>%
+  add_model(bag_spec)
+
+# Fit model
+bag_fit <- fit(bag_wf, data = train_data)
+
+# Get predictions on training data
+train_preds <- predict(bag_fit, new_data = train_data) %>% 
+  bind_cols(train_data)  # Attach true values
+# Get predictions on validation data
+val_preds <- predict(bag_fit, new_data = val_data) %>% 
+  bind_cols(val_data)  # Attach true values
+
+# Compute metrics (e.g., RMSE, R-squared for regression)
+metrics <- metric_set(rmse, rsq)
+train_metrics <- metrics(train_preds, truth = MarketCap, estimate = .pred)
+val_metrics <- metrics(val_preds, truth = MarketCap, estimate = .pred)
+
+round(train_metrics$.estimate, 4)
+round(val_metrics$.estimate,4)
+```
+
+With bagging, we improved our results. In terms of R-squared, we obtain higher values and a reduced difference between training and validation sets. Also in terms of rmse, the results are better while the distance among these two measures seem to be large.
+
+**Random Forest**
+
+Random Forest combines decision trees and bagging while also sampling randomly features for each tree. The most popular libraries on R are ranger and RandomForest.. In this case, we will use ranger.
+
+Three hyperparameters:
+
+- *mtry*: an integer for the number of predictors that will be randomly sampled at each split when creating the tree models
+- *trees*: an integer for the number of trees contained in the ensemble
+- *min_n*: an integer for the minimum number of data points in a node that are required for the node to be split further
+
+```{r}
+rf_spec <- rand_forest(mtry = 8, trees = 10, min_n = 8) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("regression")
+
+# Create workflow
+rf_wf <- workflow() %>%
+  add_recipe(esg_recipe) %>%
+  add_model(rf_spec)
+
+# Fit model
+rf_fit <- fit(rf_wf, data = train_data)
+
+# Get predictions on training data
+train_preds <- predict(rf_fit, new_data = train_data) %>% 
+  bind_cols(train_data)  # Attach true values
+# Get predictions on validation data
+val_preds <- predict(rf_fit, new_data = val_data) %>% 
+  bind_cols(val_data)  # Attach true values
+
+# Compute metrics (e.g., RMSE, R-squared for regression)
+metrics <- metric_set(rmse, rsq)
+train_metrics <- metrics(train_preds, truth = MarketCap, estimate = .pred)
+val_metrics <- metrics(val_preds, truth = MarketCap, estimate = .pred)
+
+round(train_metrics$.estimate, 4)
+round(val_metrics$.estimate,4)
+```
+
+The results are promising but we still observe overfitting issues. We need to reduce complexity or we can increase the number of trees
+
+```{r}
+rf_spec <- rand_forest(mtry = 8, trees = 100, min_n = 8) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("regression")
+
+# Create workflow
+rf_wf <- workflow() %>%
+  add_recipe(esg_recipe) %>%
+  add_model(rf_spec)
+
+# Fit model
+rf_fit <- fit(rf_wf, data = train_data)
+
+# Get predictions on training data
+train_preds <- predict(rf_fit, new_data = train_data) %>% 
+  bind_cols(train_data)  # Attach true values
+# Get predictions on validation data
+val_preds <- predict(rf_fit, new_data = val_data) %>% 
+  bind_cols(val_data)  # Attach true values
+
+# Compute metrics (e.g., RMSE, R-squared for regression)
+metrics <- metric_set(rmse, rsq)
+train_metrics <- metrics(train_preds, truth = MarketCap, estimate = .pred)
+val_metrics <- metrics(val_preds, truth = MarketCap, estimate = .pred)
+
+round(train_metrics$.estimate, 4)
+round(val_metrics$.estimate,4)
+```
+
+We obtained better results on validation set with a slight improvement of overfitting concerns.
+
+Let's visualize the most important features
+
+```{r}
+
+final_model <- extract_fit_engine(rf_fit)
+
+vip(final_model, geom = "point", horizontal = FALSE) +
+  ggtitle("Decision Tree Feature Importance") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+```
+
+
+#### **Exercise **
+
+Analyze the dataset london_bike_sharing from e-learning and apply appropriate statistical learning while finding good hyperparameters whether it is possible.
+
+```{r, include=TRUE}
+london_data <- read.csv("london_bike_sharing.csv")
+head(london_data)
+```
+
+```{r variable-description, echo=FALSE, message=FALSE}
+library(knitr)
+
+# Create a description dataframe
+variable_desc <- data.frame(
+  Variable = c(
+    "daily_cnt", "t1_max", "t1_min", "t1_median", 
+    "t2_max", "t2_min", "t2_median", "weather_code", 
+    "is_holiday", "is_weekend", "season", 
+    "max_hum", "mean_hum", "min_hum", 
+    "max_wind_speed", "mean_wind_speed", "min_wind_speed"
+  ),
+  Type = c(
+    "Numeric", "Numeric", "Numeric", "Numeric",
+    "Numeric", "Numeric", "Numeric", "Categorical",
+    "Binary", "Binary", "Categorical",
+    "Numeric", "Numeric", "Numeric",
+    "Numeric", "Numeric", "Numeric"
+  ),
+  Description = c(
+    "Total daily count of bike rentals.",
+    "Maximum real temperature (°C) recorded during the day.",
+    "Minimum real temperature (°C) recorded during the day.",
+    "Median real temperature (°C) for the day.",
+    "Maximum 'feels like' temperature (°C) (perceived, considering wind/humidity).",
+    "Minimum 'feels like' temperature (°C).",
+    "Median 'feels like' temperature (°C).",
+    "Most frequent weather condition of the day (mode). Common codes: 1 = Clear, 2 = Scattered clouds, 3 = Broken clouds, etc.",
+    "1 if the day is a holiday, 0 otherwise.",
+    "1 if the day is a weekend (Saturday/Sunday), 0 otherwise.",
+    "Season of the year: 1 = Spring, 2 = Summer, 3 = Fall, 4 = Winter.",
+    "Maximum humidity (%) during the day.",
+    "Mean humidity (%) for the day.",
+    "Minimum humidity (%) during the day.",
+    "Maximum wind speed (km/h or m/s) recorded.",
+    "Mean wind speed for the day.",
+    "Minimum wind speed recorded."
+  )
+)
+
+# Render as a formatted table
+kable(variable_desc, caption = "Table 1: Description of Variables in the Daily Bike Rentals Dataset")
+```
+

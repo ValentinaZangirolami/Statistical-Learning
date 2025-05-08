@@ -6,7 +6,6 @@
 #                           Valentina Zangirolami                              #
 ################################################################################
 
-# you can find the notes of this lecture in my github: https://github.com/ValentinaZangirolami/Statistical-Learning
 
 #load libraries
 library(car)
@@ -51,7 +50,7 @@ tree_spec <- decision_tree(cost_complexity = 0.01, tree_depth=30, min_n=20) |>
 # (hence, it is better add it after step_dummy)
 
 esg_recipe <- recipe(MarketCap~., train_data) |> 
-  step_dummy(all_nominal_predictors()) |>
+  step_dummy(all_nominal_predictors()) |>   
   step_zv(all_predictors())
 
 # The third step requires to create a workflow: it is used to merge the model and the recipe
