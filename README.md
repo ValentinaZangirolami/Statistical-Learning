@@ -9,4 +9,5 @@ R code with notes for
 - Examples with Gradient Descent
 - Gradient boosting with tidymodels
 - Missing value analysis (MCAR, MAR and NMAR)
+- PCA, NMF and autoencoders
 - Conformal prediction (regression and classification tasks - full and split conformal prediction)
