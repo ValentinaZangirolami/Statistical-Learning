@@ -129,7 +129,7 @@ Interpretation:
  - **Silhouette**: it measures how well each sample fits its assigned cluster compared to other clusters (then, in terms of cohesion and separation
  - **Sparseness**: sparsity in the observations (basis) or in the covariates (coefficients) for each run
 
-A good choice can be rank=5 since we have high cophenetic, low rss and residuals, the sparseness is somehow controlled, the explain variance is high.
+A good choice can be rank=5 since we have high cophenetic, low rss and residuals, the explain variance is high.
 
 Check dimension of W:
 

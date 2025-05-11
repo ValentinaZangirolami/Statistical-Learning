@@ -74,6 +74,7 @@ pca_variance |>
   labs(title = "PCA Scree Plot", x = "Principal Component", y = "% Variance")
 
 # it seems that we can strongly reduce the dimension of our data
+# Maybe in this case would be better to choose also 6 components (given that we still obtain a strong reduction while having good levels of explained variance)
 
 # let's store the PCA component
 
