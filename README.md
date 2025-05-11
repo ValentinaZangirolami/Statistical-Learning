@@ -1,5 +1,5 @@
 # Statistical Learning
-R code for 
+R code with notes for 
 
 - Linear regression
 - Polynomial regression
