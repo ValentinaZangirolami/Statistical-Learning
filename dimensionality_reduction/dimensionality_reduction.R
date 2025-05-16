@@ -34,7 +34,7 @@ android_data <- android_data |> select(-Label)
 
 # Compute PCA with max components
 pca_recipe <- recipe(~ ., data = android_data) |>
-  step_pca(all_numeric(), num_comp = 84)  # All 40 PCs for evaluation
+  step_pca(all_numeric(), num_comp = 56)  # All 40 PCs for evaluation
 
 pca_prepped <- prep(pca_recipe, android_data)
 pca_variance <- tidy(pca_prepped, 1, type = "variance")
@@ -122,7 +122,7 @@ plot(nmf_results, main = "NMF Rank Selection")
 # in terms of cohesion and separation
 # sparseness: sparsity in the observations (basis) or in the covariates (coefficients) for each run
 
-nmf_result <- nmf(as.matrix(android_nonneg), rank = 5, method = "lee", nrun = 10)
+nmf_result <- nmf(as.matrix(android_nonneg), rank = 4, method = "lee", nrun = 10)
 
 V.hat <- fitted(nmf_result)
 

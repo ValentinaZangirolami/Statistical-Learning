@@ -183,18 +183,6 @@ gradient <- function(beta, x, y) {
   c(d_b0, d_b1)
 }
 
-line_search <- function(beta, grad, x, y) {
-  # Define the univariate function to optimize (cost along the gradient direction)
-  f_alpha <- function(alpha) {
-    new_beta <- beta - alpha * grad
-    cost(new_beta, x, y)
-  }
-  
-  # Find optimal alpha using optimize()
-  opt <- optimize(f_alpha, interval = c(0, 1))
-  opt$minimum
-}
-
 gradient_descent <- function(x, y, beta_init, lr = 0.01, n_iter = 100) {
   beta <- matrix(0, nrow = n_iter + 1, ncol = 2)
   beta[1, ] <- beta_init
@@ -317,13 +305,13 @@ val_metrics <- metrics(val_preds, truth = MarketCap, estimate = .pred)
 round(train_metrics$.estimate, 4)
 round(val_metrics$.estimate,4) #reduced overfitting but worst performances
 
-#let's try reducing complexity
+#let's try to reduce number of trees
 
 grad_boost_2 <- boost_tree(
-  trees = 700,               # Number of trees
+  trees = 1200,               # Number of trees
   tree_depth = 6,             # Maximum tree depth
   learn_rate = 0.01,          # Learning rate (eta)
-  min_n = 6,                  # Minimum number of observations in terminal nodes
+  min_n = 5,                  # Minimum number of observations in terminal nodes
   loss_reduction = 0,         # Gamma (minimum loss reduction)
   sample_size = 1,            # Subsample ratio (1 = no subsampling)
   mtry = NULL                 # Feature fraction (NULL = all features)
